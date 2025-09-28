@@ -20,6 +20,8 @@ import programmingtheiot.common.ConfigConst as ConfigConst
 
 from programmingtheiot.common.ConfigUtil import ConfigUtil
 
+from programmingtheiot.cda.system.SystemPerformanceManager import SystemPerformanceManager
+
 logging.basicConfig(format = '%(asctime)s:%(name)s:%(levelname)s:%(message)s', level = logging.DEBUG)
 
 class ConstrainedDeviceApp():
@@ -36,9 +38,7 @@ class ConstrainedDeviceApp():
 		"""
 		logging.info("Initializing CDA...")
 		
-		# TODO: implementation here
-		
-		self.isStarted = False
+		self.sysPerfMgr = SystemPerformanceManager()
 
 	def isAppStarted(self) -> bool:
 		"""
@@ -46,24 +46,19 @@ class ConstrainedDeviceApp():
 		return self.isStarted
 
 	def startApp(self):
-		"""
-		Start the CDA. Calls startManager() on the device data manager instance.
 		
-		"""
+		
 		logging.info("Starting CDA...")
 		
-		# TODO: implementation here
-		
+		self.sysPerfMgr.startManager()	
+			
 		logging.info("CDA started.")
 
 	def stopApp(self, code: int):
-		"""
-		Stop the CDA. Calls stopManager() on the device data manager instance.
 		
-		"""
 		logging.info("CDA stopping...")
 		
-		# TODO: implementation here
+		self.sysPerfMgr.stopManager()
 		
 		logging.info("CDA stopped with exit code %s.", str(code))
 		
@@ -73,6 +68,13 @@ def main():
 	
 	Current implementation runs for 65 seconds then exits.
 	"""
+	cda = ConstrainedDeviceApp()
+	cda.startApp()
+ 
+	sleep(65)
+
+	cda.stopApp()
+	
 	argParser = argparse.ArgumentParser( \
 		description = 'CDA used for generating telemetry - Programming the IoT.')
 	
