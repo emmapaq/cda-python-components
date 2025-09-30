@@ -1,53 +1,59 @@
-#####
-# 
-# This class is part of the Programming the Internet of Things
-# project, and is available via the MIT License, which can be
-# found in the LICENSE file at the top level of this repository.
-# 
-# You may find it more helpful to your design to adjust the
-# functionality, constants and interfaces (if there are any)
-# provided within in order to meet the needs of your specific
-# Programming the Internet of Things project.
-# 
+from .BaseIotData import BaseIotData
+# import src.main.python.programmingtheiot.common.ConfigConst as ConfigConst
+from programmingtheiot.common import ConfigConst
 
-import programmingtheiot.common.ConfigConst as ConfigConst
-
-from programmingtheiot.data.BaseIotData import BaseIotData
 
 class ActuatorData(BaseIotData):
-	"""
-	Shell representation of class for student implementation.
-	
-	"""
+    """
+    ActuatorData represents actuator command data with numeric and state information.
+    Inherits from BaseIotData.
+    """
 
-	def __init__(self, typeID: int = ConfigConst.DEFAULT_ACTUATOR_TYPE, name = ConfigConst.NOT_SET, d = None):
-		super(ActuatorData, self).__init__(name = name, typeID = typeID, d = d)
-		pass
-	
-	def getCommand(self) -> int:
-		pass
-	
-	def getStateData(self) -> str:
-		pass
-	
-	def getValue(self) -> float:
-		pass
-	
-	def isResponseFlagEnabled(self) -> bool:
-		return False
-	
-	def setCommand(self, command: int):
-		pass
-	
-	def setAsResponse(self):
-		pass
-		
-	def setStateData(self, stateData: str):
-		pass
-	
-	def setValue(self, val: float):
-		pass
-		
-	def _handleUpdateData(self, data):
-		pass
-		
+    def __init__(self, typeID: int = ConfigConst.DEFAULT_ACTUATOR_TYPE, name=ConfigConst.NOT_SET, d=None):
+        super(ActuatorData, self).__init__(name=name, typeID=typeID, d=d)
+
+        self.value = ConfigConst.DEFAULT_VAL
+        self.command = ConfigConst.DEFAULT_COMMAND
+        self.stateData = ""
+        self.isResponse = False
+
+    def getCommand(self) -> int:
+        return self.command
+
+    def setCommand(self, command: int):
+        self.command = command
+        self.updateTimeStamp()
+
+    def getStateData(self) -> str:
+        return self.stateData
+
+    def setStateData(self, stateData: str):
+        if stateData:
+            self.stateData = stateData
+            self.updateTimeStamp()
+
+    def getValue(self) -> float:
+        return self.value
+
+    def setValue(self, val: float):
+        self.value = val
+        self.updateTimeStamp()
+
+    def isResponseFlagEnabled(self) -> bool:
+        return self.isResponse
+
+    def setAsResponse(self):
+        self.isResponse = True
+        self.updateTimeStamp()
+
+    def _handleUpdateData(self, data):
+        if data and isinstance(data, ActuatorData):
+            self.command = data.getCommand()
+            self.stateData = data.getStateData()
+            self.value = data.getValue()
+            self.isResponse = data.isResponseFlagEnabled()
+
+    def __str__(self):
+        return (f"ActuatorData [name={self.getName()}, typeID={self.getTypeID()}, "
+                f"value={self.value}, command={self.command}, stateData={self.stateData}, "
+                f"isResponse={self.isResponse}, timeStamp={self.timeStamp}]")
