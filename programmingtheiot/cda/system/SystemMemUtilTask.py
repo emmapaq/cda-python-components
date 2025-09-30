@@ -1,29 +1,29 @@
-#####
-# 
-# This class is part of the Programming the Internet of Things
-# project, and is available via the MIT License, which can be
-# found in the LICENSE file at the top level of this repository.
-# 
-# You may find it more helpful to your design to adjust the
-# functionality, constants and interfaces (if there are any)
-# provided within in order to meet the needs of your specific
-# Programming the Internet of Things project.
-# 
-
 import logging
 import psutil
+
+import programmingtheiot.common.ConfigConst as ConfigConst
 
 from programmingtheiot.cda.system.BaseSystemUtilTask import BaseSystemUtilTask
 
 class SystemMemUtilTask(BaseSystemUtilTask):
 	"""
-	Shell representation of class for student implementation.
-	
+	System Memory Utilization Task.
+
+	This class collects the system memory usage as a percentage using psutil.
+	It extends BaseSystemUtilTask.
 	"""
 
 	def __init__(self):
-		pass
-	
+		# Initialize the base task with name and type constants
+		super(SystemMemUtilTask, self).__init__(
+			name = ConfigConst.MEM_UTIL_NAME,
+			typeID = ConfigConst.MEM_UTIL_TYPE
+		)
+
 	def getTelemetryValue(self) -> float:
-		pass
+		"""
+		Returns the current memory utilization percentage.
 		
+		:return: Memory usage as a float
+		"""
+		return psutil.virtual_memory().percent
