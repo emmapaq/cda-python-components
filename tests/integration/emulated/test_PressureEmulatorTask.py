@@ -48,27 +48,28 @@ class PressureEmulatorTaskTest(unittest.TestCase):
 		pass
 
 	def testReadEmulator(self):
-		sd1 = self.pEmuTask.generateTelemetry()
-		
-		if sd1:
-			self.assertEqual(sd1.getTypeID(), ConfigConst.PRESSURE_SENSOR_TYPE)
-			logging.info("SensorData: %f - %s", sd1.getValue(), str(sd1))
-			
-			# wait 5 seconds
-			sleep(5)
-		else:
-			logging.warning("FAIL: SensorData is None.")
-			
-		sd2 = self.pEmuTask.generateTelemetry()
-		
-		if sd2:
-			self.assertEqual(sd2.getTypeID(), ConfigConst.PRESSURE_SENSOR_TYPE)
-			logging.info("SensorData: %f - %s", sd2.getValue(), str(sd2))
-			
-			# wait 5 seconds
-			sleep(5)
-		else:
-			logging.warning("FAIL: SensorData is None.")
+	    sd1 = self.pEmuTask.generateTelemetry()
+	    
+	    if sd1:
+	        self.assertEqual(sd1.getTypeID(), ConfigConst.PRESSURE_SENSOR_TYPE)
+	        logging.info("SensorData: %s - %s", sd1.getValue(), str(sd1))  # <-- changed %f to %s
+	        
+	        # wait 5 seconds
+	        sleep(5)
+	    else:
+	        logging.warning("FAIL: SensorData is None.")
+	        
+	    sd2 = self.pEmuTask.generateTelemetry()
+	    
+	    if sd2:
+	        self.assertEqual(sd2.getTypeID(), ConfigConst.PRESSURE_SENSOR_TYPE)
+	        logging.info("SensorData: %s - %s", sd2.getValue(), str(sd2))  # <-- changed %f to %s
+	        
+	        # wait 5 seconds
+	        sleep(5)
+	    else:
+	        logging.warning("FAIL: SensorData is None.")
+
 			
 if __name__ == "__main__":
 	unittest.main()
