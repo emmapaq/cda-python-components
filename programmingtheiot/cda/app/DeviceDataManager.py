@@ -121,7 +121,7 @@ class DeviceDataManager(IDataMessageListener):
     def handleSystemPerformanceMessage(self, data: SystemPerformanceData = None) -> bool:
         if data:
             logging.debug("Incoming system performance message received: %s", str(data))
-            # Optional: forward upstream
+            # Optional: forward upstream or process data
             return True
         logging.warning("Incoming system performance data is invalid (null). Ignoring.")
         return False
@@ -135,6 +135,7 @@ class DeviceDataManager(IDataMessageListener):
             )
 
             ad = ActuatorData(typeID=ConfigConst.HVAC_ACTUATOR_TYPE)
+            
             if data.getValue() > self.triggerHvacTempCeiling:
                 ad.setCommand(ConfigConst.COMMAND_ON)
                 ad.setValue(self.triggerHvacTempCeiling)
