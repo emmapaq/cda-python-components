@@ -1,79 +1,154 @@
 #####
-# Configuration file for the Constrained Device App (CDA)
+# Constrained Device Application (CDA) Configuration
 #
-# This provides a section-based configuration format for use by
-# ConfigUtil with keys defined in ConfigConst.
-#
-# IMPORTANT: Edit this file to meet your local system requirements.
-#
+# This configuration file contains settings for the CDA including
+# MQTT connectivity, sensor/actuator management, and system monitoring.
+#####
 
-#
-# MQTT client configuration information
-#
-[Mqtt.GatewayService]
-credFile       = ./cred/PiotMqttLocalCred.props
-certFile       = ./cert/PiotMqttLocalCertFile.pem
-host           = localhost
-port           = 1883
-securePort     = 8883
-defaultQoS     = 0
-keepAlive      = 60
-enableAuth     = False
-enableCrypt    = False
+#####
+# Constrained Device Section
+#####
+[Constrained Device]
 
-#
-# CoAP client configuration information
-#
-[Coap.GatewayService]
-credFile       = ./cred/PiotCoapCred.props
-certFile       = ./cert/PiotCoapLocalCertFile.pem
-host           = localhost
-port           = 5683
-securePort     = 5684
-enableAuth     = False
-enableCrypt    = False
-
-#
-# CDA specific configuration information
-#
-[ConstrainedDevice]
-deviceLocationID = constraineddevice001
-enableEmulator   = False
-enableSenseHAT   = False
+# Enable/disable MQTT client connectivity
 enableMqttClient = True
-enableCoapServer = False
+
+# Enable/disable CoAP client connectivity
 enableCoapClient = False
-enableSystemPerformance = True
-enableSensing    = False
-enableLogging    = True
-pollCycleSecs    = 5
-testGdaDataPath  = /tmp/gda-data
-testCdaDataPath  = /tmp/cda-data
-testEmptyApp     = False
 
-# configurable limits for sensor simulation
-humiditySimFloor   =   35.0
-humiditySimCeiling =   45.0
-pressureSimFloor   =  990.0
-pressureSimCeiling = 1010.0
-tempSimFloor       =   15.0
-tempSimCeiling     =   25.0
+# Polling cycles (in seconds) for sensor and system performance data collection
+pollCycleSecs = 5
 
-# configurable limits for actuator triggers
-handleTempChangeOnDevice = True
-triggerHvacTempFloor     = 18.0
-triggerHvacTempCeiling   = 20.0
+# Enable/disable specific managers
+enableSystemPerformanceManager = True
+enableSensorManager = True
+enableActuatorManager = True
 
-# camera settings
-streamHostAddr      = 127.0.0.1
-streamHostLabel     = localhost
-streamPort          = 8554
-streamProtocol      = rtsp
-streamPath          = stream
-streamEncoding      = MJPG
-streamFrameWidth    = 1440
-streamFrameHeight   = 1080
-streamFps           =   30
-imageFileExt        = .png
-videoFileExt        = .avi
-minMotionPixelsDiff = 10000
+# Device location information
+deviceLocationID = constraineddevice001
+latitude = 40.7128
+longitude = -74.0060
+elevation = 10.0
+
+
+#####
+# MQTT Gateway Service Section
+#####
+[Mqtt.GatewayService]
+
+# MQTT broker connection settings
+host = localhost
+port = 1883
+
+# MQTT client settings
+clientID = CDAMqttClientID001
+keepAlive = 60
+
+# MQTT Quality of Service (0, 1, or 2)
+defaultQos = 1
+
+# MQTT authentication (if required by broker)
+enableAuth = False
+userName = 
+userPassword = 
+
+# MQTT topics
+actuatorCommandTopic = PIOT/ConstrainedDevice/ActuatorCmd
+sensorDataTopic = PIOT/ConstrainedDevice/SensorData
+systemPerfTopic = PIOT/ConstrainedDevice/SystemPerf
+managementTopic = PIOT/ConstrainedDevice/MgmtStatus
+
+# TLS/SSL settings (for secure MQTT)
+enableTls = False
+tlsVersion = TLSv1.2
+certFile = 
+keyFile = 
+caFile = 
+
+
+#####
+# CoAP Gateway Service Section
+#####
+[Coap.GatewayService]
+
+# CoAP server connection settings
+host = localhost
+port = 5683
+
+# CoAP client settings
+enableAuth = False
+
+
+#####
+# Cloud Gateway Service Section  
+#####
+[Cloud.GatewayService]
+
+# Cloud provider settings
+cloudProvider = AWS
+
+# Connection settings
+host = 
+port = 8883
+
+# Authentication
+enableAuth = True
+userName = 
+userPassword = 
+
+# TLS/SSL
+enableTls = True
+certFile = 
+keyFile = 
+caFile = 
+
+
+#####
+# Sensor Simulator Section
+#####
+[SensorSimulator]
+
+# Temperature sensor settings
+enableTempSensor = True
+tempSensorMinValue = 18.0
+tempSensorMaxValue = 28.0
+
+# Humidity sensor settings
+enableHumiditySensor = True
+humiditySensorMinValue = 30.0
+humiditySensorMaxValue = 70.0
+
+# Pressure sensor settings
+enablePressureSensor = True
+pressureSensorMinValue = 990.0
+pressureSensorMaxValue = 1020.0
+
+
+#####
+# Actuator Simulator Section
+#####
+[ActuatorSimulator]
+
+# HVAC actuator settings
+enableHvacActuator = True
+
+# Humidifier actuator settings
+enableHumidifierActuator = True
+
+# LED actuator settings
+enableLedActuator = False
+
+
+#####
+# Logging Section
+#####
+[Logging]
+
+# Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+logLevel = INFO
+
+# Log file settings
+enableFileLogging = False
+logFilePath = ./logs/cda.log
+maxLogFileSize = 10485760
+maxLogFileBackups = 5

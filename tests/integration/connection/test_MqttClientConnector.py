@@ -1,15 +1,12 @@
-#####
-# 
-# This class is part of the Programming the Internet of Things
-# project, and is available via the MIT License, which can be
-# found in the LICENSE file at the top level of this repository.
-# 
-# Copyright (c) 2020 - 2025 by Andrew D. King
-# 
+"""
+MQTT Client Connector Integration Test Module
+
+Integration tests for MqttClientConnector functionality.
+These tests require a running MQTT broker.
+"""
 
 import logging
 import unittest
-
 from time import sleep
 
 import programmingtheiot.common.ConfigConst as ConfigConst
@@ -19,166 +16,226 @@ from programmingtheiot.common.ConfigUtil import ConfigUtil
 from programmingtheiot.common.ResourceNameEnum import ResourceNameEnum
 from programmingtheiot.common.DefaultDataMessageListener import DefaultDataMessageListener
 from programmingtheiot.data.ActuatorData import ActuatorData
-from programmingtheiot.data.SensorData import SensorData
 from programmingtheiot.data.DataUtil import DataUtil
 
+
 class MqttClientConnectorTest(unittest.TestCase):
-	"""
-	This test case class contains very basic unit tests for
-	MqttClientConnector. It should not be considered complete,
-	but serve as a starting point for the student implementing
-	additional functionality within their Programming the IoT
-	environment.
-	"""
-	
-	@classmethod
-	def setUpClass(self):
-		logging.basicConfig(format = '%(asctime)s:%(module)s:%(levelname)s:%(message)s', level = logging.DEBUG)
-		logging.info("Testing MqttClientConnector class...")
-		
-		self.cfg = ConfigUtil()
-		self.mcc = MqttClientConnector()
-		
-	def setUp(self):
-		pass
+    """
+    Integration test cases for MqttClientConnector.
+    
+    NOTE: These tests require a running MQTT broker accessible
+    at the host and port specified in the configuration file.
+    """
+    
+    @classmethod
+    def setUpClass(cls):
+        """Set up test fixtures for the entire test class."""
+        logging.basicConfig(
+            format='%(asctime)s:%(module)s:%(levelname)s:%(message)s',
+            level=logging.INFO
+        )
+        logging.info("Testing MqttClientConnector class...")
+        
+        cls.cfg = ConfigUtil()
+        cls.mcc = MqttClientConnector()
+        cls.dataUtil = DataUtil()
+        cls.listener = DefaultDataMessageListener()
+        cls.mcc.setDataMessageListener(cls.listener)
+    
+    def setUp(self):
+        """Set up for each test method."""
+        pass
+    
+    def tearDown(self):
+        """Tear down after each test method."""
+        pass
+    
+    @unittest.skip("Ignore for now.")
+    def testConnectAndDisconnect(self):
+        """Test basic connect and disconnect functionality."""
+        logging.info("Testing connect and disconnect...")
+        
+        connectResult = self.mcc.connectClient()
+        self.assertTrue(connectResult, "Failed to connect to MQTT broker")
+        sleep(5)
+        
+        disconnectResult = self.mcc.disconnectClient()
+        self.assertTrue(disconnectResult, "Failed to disconnect from MQTT broker")
+        
+        logging.info("Connect and disconnect test completed successfully")
+    
+    @unittest.skip("Ignore for now.")
+    def testConnectAndCDAManagementStatusPubSub(self):
+        """Test publish/subscribe to CDA management status topic."""
+        logging.info("Testing CDA Management Status Pub/Sub...")
+        
+        qos = 1
+        self.mcc.connectClient()
+        sleep(2)
+        
+        self.mcc.subscribeToTopic(
+            resource=ResourceNameEnum.CDA_MGMT_STATUS,
+            qos=qos
+        )
+        sleep(2)
+        
+        actuatorData = ActuatorData()
+        actuatorData.setName("MgmtStatusTest")
+        actuatorData.setCommand(ActuatorData.COMMAND_ON)
+        actuatorData.setValue(100.0)
+        
+        payload = self.dataUtil.actuatorDataToJson(actuatorData)
+        
+        self.mcc.publishMessage(
+            resource=ResourceNameEnum.CDA_MGMT_STATUS,
+            msg=payload,
+            qos=qos
+        )
+        
+        sleep(5)
+        
+        self.mcc.unsubscribeFromTopic(
+            resource=ResourceNameEnum.CDA_MGMT_STATUS
+        )
+        sleep(2)
+        
+        self.mcc.disconnectClient()
+        logging.info("CDA Management Status Pub/Sub test completed")
+    
+    def testActuatorCmdPubSub(self):
+        """Test publish/subscribe to actuator command topic."""
+        logging.info("Testing Actuator Command Pub/Sub...")
+        
+        qos = ConfigConst.DEFAULT_QOS
+        delay = self.cfg.getInteger(
+            ConfigConst.MQTT_GATEWAY_SERVICE,
+            ConfigConst.KEEP_ALIVE_KEY,
+            ConfigConst.DEFAULT_KEEP_ALIVE
+        )
+        
+        self.mcc.connectClient()
+        sleep(2)
+        
+        self.mcc.subscribeToTopic(
+            resource=ResourceNameEnum.CDA_ACTUATOR_CMD,
+            qos=qos
+        )
+        sleep(2)
+        
+        actuatorData = ActuatorData()
+        actuatorData.setName("ActuatorCommandTest")
+        actuatorData.setTypeID(ActuatorData.HVAC_ACTUATOR_TYPE)
+        actuatorData.setCommand(ActuatorData.COMMAND_ON)
+        actuatorData.setValue(22.5)
+        actuatorData.setStateData("Test actuator command from integration test")
+        
+        payload = self.dataUtil.actuatorDataToJson(actuatorData)
+        self.mcc.publishMessage(
+            resource=ResourceNameEnum.CDA_ACTUATOR_CMD,
+            msg=payload,
+            qos=qos
+        )
+        
+        sleep(delay)
+        
+        for i in range(3):
+            actuatorData.setValue(20.0 + i)
+            actuatorData.setStateData(f"Test message {i+1}")
+            payload = self.dataUtil.actuatorDataToJson(actuatorData)
+            
+            self.mcc.publishMessage(
+                resource=ResourceNameEnum.CDA_ACTUATOR_CMD,
+                msg=payload,
+                qos=qos
+            )
+            sleep(2)
+        
+        sleep(5)
+        
+        self.mcc.unsubscribeFromTopic(
+            resource=ResourceNameEnum.CDA_ACTUATOR_CMD
+        )
+        sleep(2)
+        
+        self.mcc.disconnectClient()
+        logging.info("Actuator Command Pub/Sub test completed successfully")
+    
+    @unittest.skip("Ignore for now.")
+    def testPublishMultipleMessages(self):
+        """Test publishing multiple messages in sequence."""
+        logging.info("Testing multiple message publishing...")
+        
+        qos = 1
+        messageCount = 10
+        
+        self.mcc.connectClient()
+        sleep(2)
+        
+        self.mcc.subscribeToTopic(
+            resource=ResourceNameEnum.CDA_ACTUATOR_CMD,
+            qos=qos
+        )
+        sleep(2)
+        
+        for i in range(messageCount):
+            actuatorData = ActuatorData()
+            actuatorData.setName(f"TestMessage_{i}")
+            actuatorData.setValue(float(i * 10))
+            
+            payload = self.dataUtil.actuatorDataToJson(actuatorData)
+            
+            self.mcc.publishMessage(
+                resource=ResourceNameEnum.CDA_ACTUATOR_CMD,
+                msg=payload,
+                qos=qos
+            )
+            sleep(0.5)
+        
+        sleep(5)
+        
+        self.mcc.unsubscribeFromTopic(
+            resource=ResourceNameEnum.CDA_ACTUATOR_CMD
+        )
+        self.mcc.disconnectClient()
+        logging.info(f"Successfully published {messageCount} messages")
+    
+    @unittest.skip("Ignore for now.")
+    def testSubscribeMultipleTopics(self):
+        """Test subscribing to multiple topics simultaneously."""
+        logging.info("Testing multiple topic subscriptions...")
+        
+        qos = 1
+        self.mcc.connectClient()
+        sleep(2)
+        
+        topics = [
+            ResourceNameEnum.CDA_ACTUATOR_CMD,
+            ResourceNameEnum.CDA_SENSOR_DATA,
+            ResourceNameEnum.CDA_MGMT_STATUS
+        ]
+        
+        for topic in topics:
+            self.mcc.subscribeToTopic(resource=topic, qos=qos)
+            sleep(1)
+        
+        for topic in topics:
+            actuatorData = ActuatorData()
+            actuatorData.setName(f"TestFor_{topic.name}")
+            actuatorData.setValue(50.0)
+            
+            payload = self.dataUtil.actuatorDataToJson(actuatorData)
+            self.mcc.publishMessage(resource=topic, msg=payload, qos=qos)
+            sleep(2)
+        
+        sleep(5)
+        
+        for topic in topics:
+            self.mcc.unsubscribeFromTopic(resource=topic)
+            sleep(1)
+        
+        self.mcc.disconnectClient()
+        logging.info("Multiple topic subscription test completed")
 
-	def tearDown(self):
-		pass
-
-	@unittest.skip("Ignore for now.")
-	def testConnectAndDisconnect(self):
-		delay = self.cfg.getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE)
-		
-		self.mcc.connectClient()
-		
-		sleep(delay + 5)
-		
-		self.mcc.disconnectClient()
-
-	@unittest.skip("Ignore for now.")
-	def testConnectAndCDAManagementStatusPubSub(self):
-		qos = 1
-		delay = self.cfg.getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE)
-		
-		self.mcc.connectClient()
-		self.mcc.subscribeToTopic(resource = ResourceNameEnum.CDA_MGMT_STATUS_MSG_RESOURCE, qos = qos)
-		sleep(5)
-		
-		self.mcc.publishMessage(resource = ResourceNameEnum.CDA_MGMT_STATUS_MSG_RESOURCE, msg = "TEST: This is the CDA message payload.", qos = qos)
-		sleep(5)
-		
-		self.mcc.unsubscribeFromTopic(resource = ResourceNameEnum.CDA_MGMT_STATUS_MSG_RESOURCE)
-		sleep(5)
-		
-		sleep(delay)
-		
-		self.mcc.disconnectClient()
-
-	@unittest.skip("Ignore for now.")
-	def testNewActuatorCmdPubSub(self):
-		qos = 1
-	
-		# NOTE: delay can be anything you'd like - the sleep() calls are simply to slow things down a bit for observation
-		delay = self.cfg.getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE)
-		
-		actuatorData = ActuatorData()
-		payload = DataUtil().actuatorDataToJson(actuatorData)
-		
-		self.mcc.setDataMessageListener(DefaultDataMessageListener())
-		self.mcc.connectClient()
-		
-		sleep(5)
-		
-		self.mcc.publishMessage(resource = ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE, msg = payload, qos = qos)
-		
-		sleep(delay)
-		
-		self.mcc.disconnectClient()
-		
-	@unittest.skip("Ignore for now.")
-	def testActuatorCmdPubSub(self):
-		qos = 0
-		delay = self.cfg.getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE)
-		
-		actuatorData = ActuatorData()
-		actuatorData.setCommand(7)
-		
-		self.mcc.setDataMessageListener(DefaultDataMessageListener())
-		
-		payload = DataUtil().actuatorDataToJson(actuatorData)
-		
-		self.mcc.connectClient()
-		
-		sleep(5)
-				
-		self.mcc.publishMessage(resource = ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE, msg = payload, qos = qos)
-		
-		sleep(delay + 5)
-		
-		self.mcc.disconnectClient()
-
-	@unittest.skip("Ignore for now.")
-	def testSensorMsgPub(self):
-		qos = 0
-		delay = self.cfg.getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE)
-		
-		sensorData = SensorData()
-		sensorData.setValue(22.0)
-		
-		self.mcc.setDataMessageListener(DefaultDataMessageListener())
-		
-		payload = DataUtil().sensorDataToJson(sensorData)
-		
-		self.mcc.connectClient()
-		
-		sleep(5)
-				
-		self.mcc.publishMessage(resource = ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE, msg = payload, qos = qos)
-		
-		sleep(delay + 5)
-		
-		self.mcc.disconnectClient()
-
-	@unittest.skip("Ignore for now.")
-	def testCDAManagementStatusSubscribe(self):
-		qos = 1
-		delay = self.cfg.getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE)
-		
-		self.mcc.connectClient()
-		self.mcc.subscribeToTopic(resource = ResourceNameEnum.CDA_MGMT_STATUS_CMD_RESOURCE, qos = qos)
-		
-		sleep(delay)
-		
-		self.mcc.disconnectClient()
-
-	@unittest.skip("Ignore for now.")
-	def testCDAActuatorCmdSubscribe(self):
-		qos = 1
-		delay = self.cfg.getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE)
-		
-		self.mcc.connectClient()
-		self.mcc.subscribeToTopic(resource = ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE, qos = qos)
-		
-		sleep(300)
-		
-		self.mcc.disconnectClient()
-
-	@unittest.skip("Ignore for now.")
-	def testCDAManagementStatusPublish(self):
-		"""
-		Uncomment this test when integration between the GDA and CDA using MQTT.
-		
-		"""
-		qos = 1
-		delay = self.cfg.getInteger(ConfigConst.MQTT_GATEWAY_SERVICE, ConfigConst.KEEP_ALIVE_KEY, ConfigConst.DEFAULT_KEEP_ALIVE)
-		
-		self.mcc.connectClient()
-		self.mcc.publishMessage(resource = ResourceNameEnum.CDA_MGMT_STATUS_MSG_RESOURCE, msg = "TEST: This is the CDA message payload.", qos = qos)
-		
-		sleep(delay)
-		
-		self.mcc.disconnectClient()
 
 if __name__ == "__main__":
-	unittest.main()
-	
+    unittest.main()

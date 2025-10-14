@@ -1,243 +1,125 @@
-#####
-# 
-# This class is part of the Programming the Internet of Things
-# project, and is available via the MIT License, which can be
-# found in the LICENSE file at the top level of this repository.
-# 
-# Copyright (c) 2020 - 2025 by Andrew D. King
-# 
+"""
+Configuration Utility Module for CDA.
+
+A simple wrapper around Python's configparser, implemented
+as a Singleton. Supports loading configuration files and
+credential files for sections.
+"""
 
 import configparser
 import logging
 import os
 import traceback
-
 from pathlib import Path
 
 from programmingtheiot.common.Singleton import Singleton
+from programmingtheiot.common.ConfigConst import (
+    DEFAULT_CONFIG_FILE_NAME,
+    CRED_SECTION,
+    CRED_FILE_KEY,
+    PARENT_PATH
+)
 
-import programmingtheiot.common.ConfigConst as ConfigConst
+class ConfigUtil(metaclass=Singleton):
+    """
+    ConfigUtil: Singleton wrapper for configparser.
+    """
 
-class ConfigUtil(metaclass = Singleton):
-	"""
-	A simple utility wrapper around the built-in Python
-	configuration infrastructure.
-	
-	Implemented as a Singleton using the Singleton metaclass.
-	
-	"""
+    configFile: str = DEFAULT_CONFIG_FILE_NAME
+    configParser: configparser.ConfigParser = configparser.ConfigParser()
+    isLoaded: bool = False
 
-	configFile   = ConfigConst.DEFAULT_CONFIG_FILE_NAME
-	configParser = configparser.ConfigParser()
-	isLoaded	 = False
-	
-	def __init__(self, configFile: str = None):
-		"""
-		Constructor for ConfigUtil.
-		
-		@param configFile The name of the configuration file to load.
-		"""
-		if (configFile is not None):
-			self.configFile = configFile
-			
-		self._loadConfig()
-		logging.info("Created instance of ConfigUtil: " + str(self))
-	
-	#
-	# public methods
-	#
-	def getConfigFileName(self) -> str:
-		"""
-		Returns the name of the configuration file.
-		
-		@return The name of the config file.
-		"""
-		return self.configFile
+    def __init__(self, configFile: str = None):
+        if configFile:
+            self.configFile = configFile
+        self._loadConfig()
+        logging.info(f"Created instance of ConfigUtil: {self}")
 
-	def getCredentials(self, section: str) -> dict:
-		"""
-		Attempts to load a separate configuration 'credential' file comprised
-		of simple key = value pairs. The assumption with this call is that
-		the credential file key is the same across all sections, so the
-		only parameter requires is the section.
-		
-		If the credential file key has an entry (e.g. the file where the
-		credentials are stored in key = value form), the file will be
-		loaded if possible, and a dict object will be returned
-		to the caller. No caching of the data is made, except within the
-		returned dict object.
-		
-		NOTE: The key case IS preserved.
-		
-		@param section
-		@return dict The dictionary of properties, or None if non-existent.
-		"""
-		if (self.hasSection(section)):
-			credFileName = self.getProperty(section, ConfigConst.CRED_FILE_KEY);
-			
-			try:
-				if os.path.exists(credFileName) and os.path.isfile(credFileName):
-					logging.info("Loading credentials from section " + section + " and file " + credFileName)
-					
-					# read cred data and dump it into a custom section for parsing
-					fileRef  = Path(credFileName)
-					credData = "[" + ConfigConst.CRED_SECTION + "]\n" + fileRef.read_text()
-					
-					# create unique ConfigParser that preserves key case
-					credParser = configparser.ConfigParser()
-					credParser.optionxform = str
-					
-					# read the stringified file data and generate / return
-					# a dict for the section we just created
-					credParser.read_string(credData)
-					credProps = dict(credParser.items(ConfigConst.CRED_SECTION))
-					
-					return credProps
-				else:
-					logging.warn("Credential file doesn't exist: " + credFileName)
-			except Exception as e:
-				traceback.print_exc()
-				logging.warn("Failed to load credentials from file: " + credFileName + ". Exception: " + str(e))
-		
-		return None
-	
-	def getProperty(self, section: str, key: str, defaultVal: str = None, forceReload: bool = False):
-		"""
-		Attempts to retrieve the value of 'key' from the config.
-		
-		@param section The name of the section to parse.
-		@param key The name of the key to lookup in 'section'.
-		@param forceReload Defaults to false; if true will reload the config.
-		@return The property associated with 'key' in 'section'.
-		"""
-		return self._getConfig(forceReload).get(section, key, fallback = defaultVal)
-	
-	def getBoolean(self, section: str, key: str, forceReload: bool = False):
-		"""
-		Attempts to retrieve the boolean value of 'key' from the config.
-		If not found, or not True, False will be returned.
-		
-		@param section The name of the section to parse.
-		@param key The name of the key to lookup in 'section'.
-		@param forceReload Defaults to false; if true will reload the config.
-		@return The boolean associated with 'key' in 'section', or false.
-		"""
-		return self._getConfig(forceReload).getboolean(section, key, fallback = False)
-		
-	def getInteger(self, section: str, key: str, defaultVal: int = 0, forceReload: bool = False):
-		"""
-		Attempts to retrieve the integer value of 'key' from the config.
-		
-		@param section The name of the section to parse.
-		@param key The name of the key to lookup in 'section'.
-		@param defaultVal The default value if section, key, or value doesn't exist (or is invalid).
-		@param forceReload Defaults to false; if true will reload the config.
-		@return The property associated with 'key' in 'section'.
-		"""
-		return self._getConfig(forceReload).getint(section, key, fallback = defaultVal)
-	
-	def getFloat(self, section: str, key: str, defaultVal: float = 0.0, forceReload: bool = False):
-		"""
-		Attempts to retrieve the float value of 'key' from the config.
-		
-		@param section The name of the section to parse.
-		@param key The name of the key to lookup in 'section'.
-		@param defaultVal The default value if section, key, or value doesn't exist (or is invalid).
-		@param forceReload Defaults to false; if true will reload the config.
-		@return The property associated with 'key' in 'section'.
-		"""
-		return self._getConfig(forceReload).getfloat(section, key, fallback = defaultVal)
-	
-	def hasProperty(self, section: str, key: str) -> bool:
-		"""
-		Checks if a given 'key' exists in the named section of the loaded config.
-		
-		@param section The name of the section to search.
-		@param key The name of the key to lookup in 'section'.
-		@return True if 'key' is found in 'section'; False otherwise.
-		"""
-		return self._getConfig().has_option(section, key)
-		
-	def hasSection(self, section: str) -> bool:
-		"""
-		Checks if a given 'section' exists in the loaded config.
-		
-		@param section The name of the section to search.
-		@return True if 'section' exists and has parameters; false otherwise.
-		"""
-		return self._getConfig().has_section(section)
-		
-	def isConfigDataLoaded(self) -> bool:
-		"""
-		Simple boolean check if the config data is loaded or not.
-		
-		@return boolean True on success; False otherwise.
-		"""
-		return self.isLoaded
-	
-	#
-	# private methods
-	#
-	
-	def _loadConfig(self):
-		"""
-		Attempts to load the config file using three checks:
-		 1) Using the name passed into the constructor.
-		 2) Using the default name in ConfigConst.
-		 3) Using the default name in ConfigConst, but up one level (when testing).
-		 
-		"""
+    #
+    # Public methods
+    #
 
-		# attempt to load user specific config file
-		if (self.configFile != ConfigConst.DEFAULT_CONFIG_FILE_NAME):
-			logging.info("Loading user config: %s", self.configFile)
+    def getConfigFileName(self) -> str:
+        return self.configFile
 
-			self._doLoadConfig(configFilePath = self.configFile)
+    def getCredentials(self, section: str) -> dict:
+        if self.hasSection(section):
+            credFileName = self.getProperty(section, CRED_FILE_KEY)
+            try:
+                if os.path.isfile(credFileName):
+                    logging.info(f"Loading credentials from section {section} and file {credFileName}")
+                    # Read cred data and wrap in a section
+                    fileRef = Path(credFileName)
+                    credData = f"[{CRED_SECTION}]\n{fileRef.read_text()}"
 
-		# attempt to load default config file
-		if not self.isLoaded:
-			logging.info("Loading default config: %s", self.configFile)
-			
-			self._doLoadConfig(configFilePath = self.configFile)
-		
-		# attempt to load config file from relative parent path
-		if not self.isLoaded:
-			self.configFile = ConfigConst.PARENT_PATH + self.configFile
+                    credParser = configparser.ConfigParser()
+                    credParser.optionxform = str  # preserve case
+                    credParser.read_string(credData)
+                    return dict(credParser.items(CRED_SECTION))
+                else:
+                    logging.warning(f"Credential file doesn't exist: {credFileName}")
+            except Exception as e:
+                logging.error(f"Failed to load credentials from file: {credFileName}. Exception: {e}")
+                traceback.print_exc()
+        return None
 
-			logging.info("Moving up one directory and loading config: %s", self.configFile)
-			
-			self._doLoadConfig(configFilePath = self.configFile)
+    def getProperty(self, section: str, key: str, defaultVal: str = None, forceReload: bool = False):
+        return self._getConfig(forceReload).get(section, key, fallback=defaultVal)
 
-		if not self.isLoaded:
-			logging.warning("No config file loaded. System running without proper configuration.")
-		else:
-			logging.debug("Config: %s", str(self.configParser.sections()))
+    def getBoolean(self, section: str, key: str, forceReload: bool = False) -> bool:
+        return self._getConfig(forceReload).getboolean(section, key, fallback=False)
 
-	def _doLoadConfig(self, configFilePath: str = None):
-		"""
-		Check if path exists - if so, load the config file.
+    def getInteger(self, section: str, key: str, defaultVal: int = 0, forceReload: bool = False) -> int:
+        return self._getConfig(forceReload).getint(section, key, fallback=defaultVal)
 
-		"""
-		if (os.path.exists(configFilePath)):
-			logging.info("Path found. Attempting config file load: %s", configFilePath)
+    def getFloat(self, section: str, key: str, defaultVal: float = 0.0, forceReload: bool = False) -> float:
+        return self._getConfig(forceReload).getfloat(section, key, fallback=defaultVal)
 
-			self.configParser.read(configFilePath)
-			self.isLoaded = True
+    def hasProperty(self, section: str, key: str) -> bool:
+        return self._getConfig().has_option(section, key)
 
-			logging.info("Config file successfully loaded from path: %s", configFilePath)
-		else:
-			logging.warning("Path not found. Failed to load config file: %s", configFilePath)
+    def hasSection(self, section: str) -> bool:
+        return self._getConfig().has_section(section)
 
-	def _getConfig(self, forceReload: bool = False) -> configparser:
-		"""
-		Returns the entire configuration object. If the config file hasn't
-		yet been loaded, it will be loaded.
-		
-		@param forceReload Defaults to false; if true, will reload the config.
-		@return The entire configuration file.
-		"""
-		if (self.isLoaded == False or forceReload):
-			self._loadConfig()
-		
-		return self.configParser
-	
+    def isConfigDataLoaded(self) -> bool:
+        return self.isLoaded
+
+    #
+    # Private methods
+    #
+
+    def _loadConfig(self):
+        # 1) User-provided file
+        if self.configFile != DEFAULT_CONFIG_FILE_NAME:
+            logging.info(f"Loading user config: {self.configFile}")
+            self._doLoadConfig(configFilePath=self.configFile)
+
+        # 2) Default config file
+        if not self.isLoaded:
+            logging.info(f"Loading default config: {self.configFile}")
+            self._doLoadConfig(configFilePath=self.configFile)
+
+        # 3) Relative parent path
+        if not self.isLoaded:
+            self.configFile = os.path.join(PARENT_PATH, self.configFile)
+            logging.info(f"Loading config from parent path: {self.configFile}")
+            self._doLoadConfig(configFilePath=self.configFile)
+
+        if not self.isLoaded:
+            logging.warning("No config file loaded. System running without proper configuration.")
+        else:
+            logging.debug(f"Config sections loaded: {self.configParser.sections()}")
+
+    def _doLoadConfig(self, configFilePath: str):
+        if os.path.exists(configFilePath):
+            logging.info(f"Path found. Loading config file: {configFilePath}")
+            self.configParser.read(configFilePath)
+            self.isLoaded = True
+            logging.info(f"Config file successfully loaded from: {configFilePath}")
+        else:
+            logging.warning(f"Path not found. Failed to load config file: {configFilePath}")
+
+    def _getConfig(self, forceReload: bool = False) -> configparser.ConfigParser:
+        if not self.isLoaded or forceReload:
+            self._loadConfig()
+        return self.configParser

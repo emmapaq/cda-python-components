@@ -1,140 +1,148 @@
-#####
-# 
-# This class is part of the Programming the Internet of Things
-# project, and is available via the MIT License, which can be
-# found in the LICENSE file at the top level of this repository.
-# 
-# You may find it more helpful to your design to adjust the
-# functionality, constants and interfaces (if there are any)
-# provided within in order to meet the needs of your specific
-# Programming the Internet of Things project.
-# 
+"""
+Constrained Device Application
 
-import argparse
+Main application entry point for the Constrained Device Application (CDA).
+This application manages device data collection, processing, and communication
+with cloud services via MQTT.
+"""
+
 import logging
-import traceback
+import sys
 
 from time import sleep
 
 import programmingtheiot.common.ConfigConst as ConfigConst
 
 from programmingtheiot.common.ConfigUtil import ConfigUtil
+from programmingtheiot.cda.app.DeviceDataManager import DeviceDataManager
 
-logging.basicConfig(format = '%(asctime)s:%(name)s:%(levelname)s:%(message)s', level = logging.DEBUG)
 
 class ConstrainedDeviceApp():
-	"""
-	Definition of the ConstrainedDeviceApp class.
-	
-	"""
-	
-	def __init__(self):
-		"""
-		Initialization of class.
-		
-		@param path The name of the resource to apply to the URI.
-		"""
-		logging.info("Initializing CDA...")
-		
-		# TODO: implementation here
-		
-		self.isStarted = False
+    """
+    Main application class for the Constrained Device Application.
+    
+    Initializes and manages the device data manager, handling startup,
+    runtime operations, and shutdown procedures.
+    """
+    
+    def __init__(self):
+        """
+        Constructor for ConstrainedDeviceApp.
+        
+        Initializes logging and creates the DeviceDataManager instance.
+        """
+        logging.info("Initializing Constrained Device Application...")
+        
+        self.configUtil = ConfigUtil()
+        self.deviceDataManager = DeviceDataManager()
+        
+        logging.info("Constrained Device Application initialized successfully")
+    
+    def startApp(self):
+        """
+        Starts the Constrained Device Application.
+        
+        Initiates the DeviceDataManager, which in turn starts all
+        subsystems including MQTT connectivity, sensor monitoring,
+        and actuator management.
+        """
+        logging.info("=" * 80)
+        logging.info("Starting Constrained Device Application...")
+        logging.info("=" * 80)
+        
+        try:
+            self.deviceDataManager.startManager()
+            logging.info("Constrained Device Application started successfully")
+            logging.info("Application is now running. Press Ctrl+C to stop.")
+            
+        except Exception as e:
+            logging.error(f"Failed to start Constrained Device Application: {e}")
+            raise
+    
+    def stopApp(self, code: int = 0):
+        """
+        Stops the Constrained Device Application.
+        
+        Gracefully shuts down all subsystems including MQTT connections,
+        sensor monitoring, and actuator management.
+        
+        Args:
+            code: Exit code (default: 0 for normal termination)
+        """
+        logging.info("=" * 80)
+        logging.info("Stopping Constrained Device Application...")
+        logging.info("=" * 80)
+        
+        try:
+            self.deviceDataManager.stopManager()
+            logging.info("Constrained Device Application stopped successfully")
+            
+        except Exception as e:
+            logging.error(f"Error during application shutdown: {e}")
+            
+        finally:
+            logging.info("=" * 80)
+            logging.info("Constrained Device Application terminated")
+            logging.info("=" * 80)
+            sys.exit(code)
+    
+    def parseArgs(self, args):
+        """
+        Parse command line arguments.
+        
+        Args:
+            args: Command line arguments
+        """
+        # Placeholder for future command line argument parsing
+        logging.info(f"Parsing command line args: {args}")
 
-	def isAppStarted(self) -> bool:
-		"""
-		"""
-		return self.isStarted
 
-	def startApp(self):
-		"""
-		Start the CDA. Calls startManager() on the device data manager instance.
-		
-		"""
-		logging.info("Starting CDA...")
-		
-		# TODO: implementation here
-		
-		logging.info("CDA started.")
-
-	def stopApp(self, code: int):
-		"""
-		Stop the CDA. Calls stopManager() on the device data manager instance.
-		
-		"""
-		logging.info("CDA stopping...")
-		
-		# TODO: implementation here
-		
-		logging.info("CDA stopped with exit code %s.", str(code))
-		
 def main():
-	"""
-	Main function definition for running client as application.
-	
-	Current implementation runs for 65 seconds then exits.
-	"""
-	argParser = argparse.ArgumentParser( \
-		description = 'CDA used for generating telemetry - Programming the IoT.')
-	
-	argParser.add_argument('-c', '--configFile', help = 'Optional custom configuration file for the CDA.')
+    """
+    Main entry point for the Constrained Device Application.
+    
+    Sets up logging, creates the application instance, and manages
+    the application lifecycle.
+    """
+    # Configure logging
+    logging.basicConfig(
+        format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
+        level=logging.INFO
+    )
+    
+    logging.info("=" * 80)
+    logging.info("Constrained Device Application - Starting Up")
+    logging.info("=" * 80)
+    
+    # Create application instance
+    cda = ConstrainedDeviceApp()
+    
+    try:
+        # Start the application
+        cda.startApp()
+        
+        # Keep the application running
+        # In a production environment, you might want to add signal handlers
+        # for graceful shutdown on SIGTERM, SIGINT, etc.
+        while True:
+            sleep(5)
+            
+    except KeyboardInterrupt:
+        logging.info("\nKeyboard interrupt detected")
+        
+    except Exception as e:
+        logging.error(f"Unexpected error in main application: {e}", exc_info=True)
+        
+    finally:
+        # Stop the application
+        cda.stopApp()
 
-	configFile = None
-
-	try:
-		args = argParser.parse_args()
-		configFile = args.configFile
-
-		logging.info('Parsed configuration file arg: %s', configFile)
-	except:
-		logging.info('No arguments to parse.')
-
-	# init ConfigUtil
-	configUtil = ConfigUtil(configFile)
-	cda = None
-
-	try:
-		# init CDA
-		cda = ConstrainedDeviceApp()
-
-		# start CDA
-		cda.startApp()
-
-		# check if CDA should run forever
-		runForever = configUtil.getBoolean(ConfigConst.CONSTRAINED_DEVICE, ConfigConst.RUN_FOREVER_KEY)
-
-		if runForever:
-			# sleep ~5 seconds every loop
-			while (True):
-				sleep(5)
-			
-		else:
-			# run CDA for ~65 seconds then exit
-			if (cda.isAppStarted()):
-				sleep(65)
-				cda.stopApp(0)
-			
-	except KeyboardInterrupt:
-		logging.warning('Keyboard interruption for CDA. Exiting.')
-
-		if (cda):
-			cda.stopApp(-1)
-
-	except Exception as e:
-		# handle any uncaught exception that may be thrown
-		# during CDA initialization
-		logging.error('Startup exception caused CDA to fail. Exiting.')
-		traceback.print_exception(type(e), e, e.__traceback__)
-
-		if (cda):
-			cda.stopApp(-2)
-
-	# unnecessary
-	logging.info('Exiting CDA.')
-	exit()
 
 if __name__ == '__main__':
-	"""
-	Attribute definition for when invoking as app via command line
-	
-	"""
-	main()
+    """
+    Script execution entry point.
+    
+    Usage:
+        python ConstrainedDeviceApp.py
+    """
+    main()
