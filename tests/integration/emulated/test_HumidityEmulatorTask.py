@@ -1,21 +1,31 @@
 #####
-# 
-# This class is part of the Programming the Internet of Things
-# project, and is available via the MIT License, which can be
-# found in the LICENSE file at the top level of this repository.
-# 
-# Copyright (c) 2020 - 2025 by Andrew D. King
-# 
+# test_HumidityEmulatorTask.py
+#
 
-import logging
+import sys
+import os
+from unittest.mock import MagicMock
+
+# MUST BE FIRST: Set up emulation environment before any imports
+os.environ['PISENSE_EMULATE'] = '1'
+
+# Mock RTIMU before any pisense imports
+if 'RTIMU' not in sys.modules:
+    sys.modules['RTIMU'] = MagicMock()
+
 import unittest
+import logging
 
 from time import sleep
 
 import programmingtheiot.common.ConfigConst as ConfigConst
 
-from programmingtheiot.data.SensorData import SensorData
+from programmingtheiot.common.ConfigUtil import ConfigUtil
 from programmingtheiot.cda.emulated.HumiditySensorEmulatorTask import HumiditySensorEmulatorTask
+
+
+from programmingtheiot.data.SensorData import SensorData
+# from programmingtheiot.cda.emulated.HumiditySensorEmulatorTask import HumiditySensorEmulatorTask
 
 class HumidityEmulatorTaskTest(unittest.TestCase):
 	"""

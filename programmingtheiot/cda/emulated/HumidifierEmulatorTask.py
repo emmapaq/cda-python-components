@@ -1,38 +1,87 @@
-#####
-# 
-# This class is part of the Programming the Internet of Things
-# project, and is available via the MIT License, which can be
-# found in the LICENSE file at the top level of this repository.
-# 
-# You may find it more helpful to your design to adjust the
-# functionality, constants and interfaces (if there are any)
-# provided within in order to meet the needs of your specific
-# Programming the Internet of Things project.
-# 
+"""
+Humidifier Actuator Emulator Task Module
+
+This module provides humidifier actuator emulation functionality using the
+Sense HAT emulator via the pisense library.
+
+License: PIOT-DOC-LIC
+@author: Your Name
+"""
 
 import logging
 
 from time import sleep
 
 import programmingtheiot.common.ConfigConst as ConfigConst
-
 from programmingtheiot.common.ConfigUtil import ConfigUtil
 from programmingtheiot.cda.sim.BaseActuatorSimTask import BaseActuatorSimTask
-
 from pisense import SenseHAT
 
+
 class HumidifierEmulatorTask(BaseActuatorSimTask):
-	"""
-	Shell representation of class for student implementation.
-	
-	"""
-
-	def __init__(self):
-		pass
-
-	def _activateActuator(self, val: float = ConfigConst.DEFAULT_VAL, stateData: str = None) -> int:
-		pass
-
-	def _deactivateActuator(self, val: float = ConfigConst.DEFAULT_VAL, stateData: str = None) -> int:
-		pass
-	
+    """
+    Emulator task for humidifier actuator using Sense HAT.
+    
+    This class extends BaseActuatorSimTask to provide humidifier control
+    via the Sense HAT LED display, displaying activation status and values.
+    """
+    
+    def __init__(self):
+        """
+        Constructor for HumidifierEmulatorTask.
+        
+        Initializes the parent class with humidifier actuator configuration
+        and creates a SenseHAT instance with emulation mode based on
+        the configuration file setting.
+        """
+        super(
+            HumidifierEmulatorTask, self).__init__(
+                name=ConfigConst.HUMIDIFIER_ACTUATOR_NAME,
+                typeID=ConfigConst.HUMIDIFIER_ACTUATOR_TYPE,
+                simpleName="HUMIDIFIER")
+        
+        # Retrieve emulation flag from configuration file
+        enableEmulation = \
+            ConfigUtil().getBoolean(
+                ConfigConst.CONSTRAINED_DEVICE,
+                ConfigConst.ENABLE_EMULATOR_KEY)
+        
+        # Initialize SenseHAT with emulation mode
+        self.sh = SenseHAT(emulate=enableEmulation)
+    
+    def _activateActuator(self, val: float = ConfigConst.DEFAULT_VAL, stateData: str = None) -> int:
+        """
+        Activates the humidifier actuator by displaying a message on the Sense HAT LED screen.
+        
+        @param val: The actuation value (e.g., target humidity level)
+        @param stateData: Optional state data string
+        @return: 0 on success, -1 on failure
+        """
+        if self.sh.screen:
+            msg = self.getSimpleName() + ' ON: ' + str(val) + 'C'
+            self.sh.screen.scroll_text(msg)
+            return 0
+        else:
+            logging.warning("No SenseHAT LED screen instance to write.")
+            return -1
+    
+    def _deactivateActuator(self, val: float = ConfigConst.DEFAULT_VAL, stateData: str = None) -> int:
+        """
+        Deactivates the humidifier actuator by displaying an OFF message and clearing the screen.
+        
+        @param val: The actuation value (not used for deactivation)
+        @param stateData: Optional state data string
+        @return: 0 on success, -1 on failure
+        """
+        if self.sh.screen:
+            msg = self.getSimpleName() + ' OFF'
+            self.sh.screen.scroll_text(msg)
+            
+            # Optional sleep (5 seconds) for message to scroll before clearing display
+            sleep(5)
+            
+            self.sh.screen.clear()
+            return 0
+        else:
+            logging.warning("No SenseHAT LED screen instance to clear / close.")
+            return -1

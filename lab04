@@ -1,0 +1,34 @@
+[33m9ee97be[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mlabmodule04[m[33m, [m[1;31morigin/labmodule04[m[33m)[m labmodule04
+[33m899dd59[m Add README for Lab Module 03 - Simulator
+[33m05d91d1[m lab01
+[33m35ca312[m[33m ([m[1;31morigin/default[m[33m, [m[1;31morigin/HEAD[m[33m)[m Minor update to VS Code settings.json  - Useful if any tests end up in the root folder.
+[33mef6cb94[m Merge branch 'default' of https://github.com/programming-the-iot/cda-python-components into default
+[33m7f3f458[m Fixed IDE settings:  - Eclipse PyDev: Corrected paths  - VS Code: Correct app path and unittest discovery paths Added __init__.py to tests path Updated .gitignore
+[33mbca5e35[m Fixed VS Code launch.json config file.
+[33m8680c9e[m Cleaned up pydev project config.
+[33mcb2def4[m Update README.md
+[33m2a1bf0f[m Update README.md
+[33m9b04c30[m Update README.md
+[33m472d9af[m Updated .gitignore
+[33m774472d[m Updated .gitignore
+[33m8b7b150[m Fixed two import typos.
+[33m444c48f[m Updated copyright dates. Cleaned up preamble comments.
+[33m6465b3e[m Restored 'programmingtheiot' from simply 'piot'  - Maintains some backwards compatibility with prev rev  Updated copyright dates.  Cleaned up preamble comments.
+[33md12b4e7[m Minor wordsmithing to the README. Moved some tests from integration to unit.
+[33m45cdb9d[m Cleaned up config util testing.  - Renamed original to test_ConfigUtilDefault  - Added custom config file test_ConfigUtilCustom
+[33m2994f08[m Update README.md
+[33mc3671ec[m Update README.md
+[33m10265d0[m Updated README.
+[33maed3148[m A number of changes made to make testing easier.
+[33m3ab00b1[m Updated VS code settings (launch.json and settings.json)
+[33m9c3f5e8[m Added VS Code launch config from WSL. Minor tweaks to app and config const. Moved MatPlotLib ref to required method in SensorDataGenerator.py. Fixed typo import in IRequestResponseClient.py
+[33md999e13[m Merge remote-tracking branch 'refs/remotes/origin/default' into default
+[33m4211f4f[m Fixed relative path in ConfigConst.py Cleaned up naming / runtime issues in new ConstrainedDeviceApp.py
+[33m21eb8a9[m Update README.md
+[33ma75fd20[m Re-added eclipse configs.
+[33md89727b[m Update LICENSE
+[33m80354ea[m Fixed paths to align with typical python structure. Fixed unittest module config in VS Code. Updated CDA with code to support config file arg.
+[33m02358e5[m Fixed import typo.
+[33m253c002[m Added missing tests. Renamed test modules to 'test_*'
+[33md912c73[m Renamed tests and updated path structure.
+[33mfb08a0d[m Initial commit
