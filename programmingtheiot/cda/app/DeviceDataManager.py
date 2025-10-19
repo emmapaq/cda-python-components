@@ -156,7 +156,7 @@ class DeviceDataManager(IDataMessageListener):
         
         try:
             # Parse the message and handle based on resource type
-            if resourceEnum == ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE:
+            if resourceEnum == ResourceNameEnum.CDA_ACTUATOR_CMD:
                 # Convert message to ActuatorData and process
                 from programmingtheiot.data.DataUtil import DataUtil
                 dataUtil = DataUtil()
@@ -248,7 +248,7 @@ class DeviceDataManager(IDataMessageListener):
             
             # Subscribe to actuator command topic
             self.mqttClient.subscribeToTopic(
-                resource=ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE,
+                resource=ResourceNameEnum.CDA_ACTUATOR_CMD,
                 callback=None,
                 qos=ConfigConst.DEFAULT_QOS
             )
@@ -276,7 +276,7 @@ class DeviceDataManager(IDataMessageListener):
             
             # Unsubscribe from topics
             self.mqttClient.unsubscribeFromTopic(
-                resource=ResourceNameEnum.CDA_ACTUATOR_CMD_RESOURCE
+                resource=ResourceNameEnum.CDA_ACTUATOR_CMD
             )
             
             # Disconnect client
