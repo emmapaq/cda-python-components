@@ -8,6 +8,7 @@ License: PIOT-DOC-LIC
 @author: Your Name
 """
 
+import logging
 from programmingtheiot.data.SensorData import SensorData
 import programmingtheiot.common.ConfigConst as ConfigConst
 from programmingtheiot.common.ConfigUtil import ConfigUtil
@@ -18,64 +19,55 @@ from pisense import SenseHAT
 class HumiditySensorEmulatorTask(BaseSensorSimTask):
     """
     Emulator task for humidity sensor using Sense HAT.
-    
+
     This class extends BaseSensorSimTask to provide humidity readings
     from either the Sense HAT emulator or physical hardware, depending
     on the configuration setting.
     """
-    
+
     def __init__(self):
         """
         Constructor for HumiditySensorEmulatorTask.
-        
+
         Initializes the parent class with humidity sensor configuration
         and creates a SenseHAT instance with emulation mode based on
         the configuration file setting.
         """
-        super(
-            HumiditySensorEmulatorTask, self).__init__(
-                name=ConfigConst.HUMIDITY_SENSOR_NAME,
-                typeID=ConfigConst.HUMIDITY_SENSOR_TYPE)
-        
-        # Retrieve emulation flag from configuration file
-        # Default to True if not found in config
-        enableEmulation = \
-            ConfigUtil().getBoolean(
-                ConfigConst.CONSTRAINED_DEVICE, 
-                ConfigConst.ENABLE_EMULATOR_KEY)
-        
-        # Force emulation mode to True (uncomment if needed for debugging)
-        # enableEmulation = True
-        
-        # Initialize SenseHAT with emulation mode
-        # If enableEmulation is True, uses emulator
-        # If False, attempts to use physical Sense HAT hardware
+        super(HumiditySensorEmulatorTask, self).__init__(
+            name=ConfigConst.HUMIDITY_SENSOR_NAME,
+            typeID=ConfigConst.HUMIDITY_SENSOR_TYPE
+        )
+
+        enableEmulation = ConfigUtil().getBoolean(
+            ConfigConst.CONSTRAINED_DEVICE,
+            ConfigConst.ENABLE_EMULATOR_KEY
+        )
+
+        logging.debug("Initializing SenseHAT with emulate=%s", enableEmulation)
+
         self.sh = SenseHAT(emulate=enableEmulation)
-    
+
     def generateTelemetry(self) -> SensorData:
         """
         Generates telemetry data by reading humidity from Sense HAT.
-        
-        This method retrieves the current humidity reading from the
-        Sense HAT emulator or hardware, wraps it in a SensorData object,
-        and updates the internal latestSensorData reference.
-        
+
         Returns:
             SensorData: Object containing the current humidity reading
-                       with metadata (name, typeID, timestamp, etc.)
+            with metadata (name, typeID, timestamp, etc.)
         """
-        # Create new SensorData instance
         sensorData = SensorData()
-        
-        # Set all metadata
+        sensorData.setTypeID(ConfigConst.HUMIDITY_SENSOR_TYPE)
         sensorData.setName(self.getName())
-        sensorData.setTypeID(self.getTypeID())
-        
-        # Read humidity value from Sense HAT
+
         sensorVal = self.sh.environ.humidity
-        
-        # Set the sensor value
+        logging.debug("Raw humidity value from SenseHAT: %s", sensorVal)
+
+        if sensorVal is None:
+            logging.warning("Humidity reading returned None. Using default value.")
+            sensorVal = 50.0  # Default humidity percentage
+
         sensorData.setValue(sensorVal)
+        logging.info("Generated SensorData: %s", sensorData)
+
         self.latestSensorData = sensorData
-        
         return sensorData
