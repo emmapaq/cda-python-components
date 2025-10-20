@@ -1,11 +1,11 @@
 #####
-# 
+#
 # This class is part of the Programming the Internet of Things
 # project, and is available via the MIT License, which can be
 # found in the LICENSE file at the top level of this repository.
-# 
+#
 # Copyright (c) 2020 - 2025 by Andrew D. King
-# 
+#
 
 import logging
 import unittest
@@ -26,7 +26,7 @@ class ActuatorEmulatorManagerTest(unittest.TestCase):
 	but serve as a starting point for the student implementing
 	additional functionality within their Programming the IoT
 	environment.
-	
+
 	NOTE: This test requires the sense_emu_gui to be running
 	and must have access to the underlying libraries that
 	support the pisense module. On Windows, one way to do
@@ -34,9 +34,9 @@ class ActuatorEmulatorManagerTest(unittest.TestCase):
 	Bash on Ubuntu on Windows environment and then execute this
 	test case from the command line, as it will likely fail
 	if run within an IDE in native Windows.
-	
+
 	"""
-	
+
 	@classmethod
 	def setUpClass(self):
 		logging.basicConfig(format = '%(asctime)s:%(module)s:%(levelname)s:%(message)s', level = logging.DEBUG)
@@ -45,7 +45,7 @@ class ActuatorEmulatorManagerTest(unittest.TestCase):
 		self.defaultMsgListener = DefaultDataMessageListener()
 		self.actuatorAdapterMgr = ActuatorAdapterManager()
 		self.actuatorAdapterMgr.setDataMessageListener(self.defaultMsgListener)
-		
+
 	def setUp(self):
 		pass
 
@@ -59,8 +59,12 @@ class ActuatorEmulatorManagerTest(unittest.TestCase):
 		ad.setCommand(ConfigConst.COMMAND_ON)
 		self.actuatorAdapterMgr.sendActuatorCommand(ad)
 		
+		sleep(8)  # Wait for actuator to process
+		
 		ad.setCommand(ConfigConst.COMMAND_OFF)
 		self.actuatorAdapterMgr.sendActuatorCommand(ad)
+		
+		sleep(8)  # Wait for actuator to process
 
 	def testHvacEmulation(self):
 		ad = ActuatorData(typeID = ConfigConst.HVAC_ACTUATOR_TYPE)
@@ -69,8 +73,12 @@ class ActuatorEmulatorManagerTest(unittest.TestCase):
 		ad.setCommand(ConfigConst.COMMAND_ON)
 		self.actuatorAdapterMgr.sendActuatorCommand(ad)
 		
+		sleep(6)  # Wait for actuator to process
+		
 		ad.setCommand(ConfigConst.COMMAND_OFF)
 		self.actuatorAdapterMgr.sendActuatorCommand(ad)
+		
+		sleep(6)  # Wait for actuator to process
 
 	def testLedDisplayEmulation(self):
 		ad = ActuatorData(typeID = ConfigConst.LED_DISPLAY_ACTUATOR_TYPE)
@@ -78,9 +86,12 @@ class ActuatorEmulatorManagerTest(unittest.TestCase):
 		ad.setStateData("What's up?")
 		self.actuatorAdapterMgr.sendActuatorCommand(ad)
 		
+		sleep(5)  # Wait for display to render
+		
 		ad.setCommand(ConfigConst.COMMAND_OFF)
 		self.actuatorAdapterMgr.sendActuatorCommand(ad)
+		
+		sleep(5)  # Wait for display to clear
 
 if __name__ == "__main__":
 	unittest.main()
-	
