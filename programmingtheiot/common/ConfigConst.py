@@ -299,3 +299,10 @@ MAX_MOTION_FRAMES_BEFORE_ACTION_KEY = 'maxMotionFramesBeforeAction'
 MAX_CACHED_FRAMES_KEY      = 'maxCachedFrames'
 STORE_INTERIM_FRAMES_KEY   = 'storeInterimFrames'
 INCLUDE_RAW_IMAGE_DATA_IN_MSG_KEY = 'includeRawImageDataInMsg'
+
+ENABLE_SYSTEM_PERF_KEY = 'enableSystemPerformance'
+ENABLE_SENSING_KEY = 'enableSensing'
+
+HANDLE_TEMP_CHANGE_ON_DEVICE_KEY = 'handleTempChangeOnDevice'
+TRIGGER_HVAC_TEMP_FLOOR_KEY = 'triggerHvacTempFloor'
+TRIGGER_HVAC_TEMP_CEILING_KEY = 'triggerHvacTempCeiling'

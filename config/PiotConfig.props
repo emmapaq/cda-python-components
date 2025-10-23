@@ -44,7 +44,7 @@ enableMqttClient = True
 enableCoapServer = False
 enableCoapClient = False
 enableSystemPerformance = True
-enableSensing    = False
+enableSensing    = True
 enableLogging    = True
 pollCycleSecs    = 5
 testGdaDataPath  = /tmp/gda-data
@@ -77,3 +77,5 @@ streamFps           =   30
 imageFileExt        = .png
 videoFileExt        = .avi
 minMotionPixelsDiff = 10000
+
+
