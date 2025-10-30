@@ -75,7 +75,7 @@ class CoapServerAdapterTest(unittest.TestCase):
 		
 		self.coapServer.addResource( \
 			ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE, \
-			ConfigConst.SYSTEM_PERF_NAME, \
+			ConfigConst.SYSTEM_PERF_TYPE, \
 			self.sysPerfDataUpdateListener)
 		
 		# create a scheduler to update system perf data and temp sensor data at pollCycles

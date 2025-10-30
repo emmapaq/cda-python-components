@@ -28,7 +28,9 @@ DEFAULT_MQTT_SECURE_PORT = 8883
 DEFAULT_KEEP_ALIVE = 60
 DEFAULT_QOS = 1
 DEFAULT_COMMAND_TIMEOUT = 5
+DEFAULT_TIMEOUT = 5
 DEFAULT_POLLING_CYCLES = 5
+DEFAULT_POLL_CYCLES = 60
 DEFAULT_TTL = 300
 
 #####
@@ -43,26 +45,43 @@ DEVICE_NAME = "CDA"
 #####
 # CDA Resource and Message Names
 #####
-CDA_SENSOR_DATA_MSG_RESOURCE = "CdaSensorDataMsg"
-CDA_ACTUATOR_CMD_MSG_RESOURCE = "CdaActuatorCmdMsg"
-CDA_ACTUATOR_RESPONSE_MSG_RESOURCE = "CdaActuatorResponseMsg"
-CDA_MGMT_STATUS_MSG_RESOURCE = "CdaMgmtStatusMsg"
-CDA_MGMT_CMD_MSG_RESOURCE = "CdaMgmtCmdMsg"
-CDA_SYSTEM_PERF_MSG_RESOURCE = "CdaSystemPerfMsg"
-CDA_UPDATE_NOTIFICATIONS_MSG_RESOURCE = "CdaUpdateNotificationsMsg"
-CDA_SENSOR_MSG_RESOURCE = "CdaSensorMsg"  # required by tests
+CDA_SENSOR_DATA_MSG_RESOURCE = "PIOT/ConstrainedDevice/SensorMsg"
+CDA_ACTUATOR_CMD_MSG_RESOURCE = "PIOT/ConstrainedDevice/ActuatorCmd"
+CDA_ACTUATOR_RESPONSE_MSG_RESOURCE = "PIOT/ConstrainedDevice/ActuatorResponse"
+CDA_MGMT_STATUS_MSG_RESOURCE = "PIOT/ConstrainedDevice/MgmtStatusMsg"
+CDA_MGMT_CMD_MSG_RESOURCE = "PIOT/ConstrainedDevice/MgmtCmd"
+CDA_SYSTEM_PERF_MSG_RESOURCE = "PIOT/ConstrainedDevice/SystemPerfMsg"
+CDA_UPDATE_NOTIFICATIONS_MSG_RESOURCE = "PIOT/ConstrainedDevice/UpdateMsg"
+CDA_SENSOR_MSG_RESOURCE = "PIOT/ConstrainedDevice/SensorMsg"  # Alias for tests
 
 #####
+# Resource Handler Names
+#####
+SYSTEM_PERF_MSG = "SystemPerfMsg"
+SYSTEM_PERF_NAME = "SystemPerfMsg"  # Alias for tests
+SENSOR_MSG = "SensorMsg"
+ACTUATOR_CMD = "ActuatorCmd"
+ACTUATOR_RESPONSE = "ActuatorResponse"
 
-# Resource names for CDA messaging
-CDA_SENSOR_DATA_MSG_RESOURCE = "CDA_SENSOR_DATA"
-CDA_ACTUATOR_CMD_MSG_RESOURCE = "CDA_ACTUATOR_CMD"
-CDA_ACTUATOR_RESPONSE_MSG_RESOURCE = "CDA_ACTUATOR_RESPONSE"
-CDA_MGMT_STATUS_MSG_RESOURCE = "CDA_MGMT_STATUS"
-CDA_MGMT_CMD_MSG_RESOURCE = "CDA_MGMT_CMD"
-CDA_SYSTEM_PERF_MSG_RESOURCE = "CDA_SYSTEM_PERF"
-CDA_UPDATE_NOTIFICATIONS_MSG_RESOURCE = "CDA_UPDATE_NOTIFICATIONS"
+# Additional aliases for tests
+SYSTEM_PERF_NAME = "SystemPerfMsg"
+CDA_MGMT_STATUS_MSG_RESOURCE = "PIOT/ConstrainedDevice/MgmtStatusMsg"
 
+#####
+# Actuator Names
+#####
+HUMIDIFIER_ACTUATOR_NAME = "HumidifierActuator"
+HVAC_ACTUATOR_NAME = "HvacActuator"
+LED_ACTUATOR_NAME = "LedActuator"
+
+#####
+# Sensor Names
+#####
+TEMP_SENSOR_NAME = "TempSensor"
+HUMIDITY_SENSOR_NAME = "HumiditySensor"
+PRESSURE_SENSOR_NAME = "PressureSensor"
+
+#####
 # Configuration Sections
 #####
 CONSTRAINED_DEVICE_SECTION = "ConstrainedDevice"
@@ -72,18 +91,20 @@ CLOUD_GATEWAY_SERVICE = "Cloud.GatewayService"
 SENSOR_SIMULATOR = "SensorSimulator"
 ACTUATOR_SIMULATOR = "ActuatorSimulator"
 LOGGING = "Logging"
-CRED_SECTION = "Credentials"  # required by ConfigUtil.py
+CRED_SECTION = "Credentials"
 
 #####
 # Configuration Keys - CDA
 #####
 ENABLE_MQTT_CLIENT_KEY = "enableMqttClient"
 ENABLE_COAP_CLIENT_KEY = "enableCoapClient"
+ENABLE_COAP_SERVER_KEY = "enableCoapServer"
 ENABLE_CLOUD_CLIENT_KEY = "enableCloudClient"
 ENABLE_SYSTEM_PERF_KEY = "enableSystemPerformanceManager"
 ENABLE_SENSOR_MANAGER_KEY = "enableSensorManager"
 ENABLE_ACTUATOR_MANAGER_KEY = "enableActuatorManager"
 POLLING_CYCLES_KEY = "pollCycleSecs"
+POLL_CYCLES_KEY = "pollCycleSecs"  # Alias
 DEVICE_LOCATION_ID_KEY = "deviceLocationID"
 LATITUDE_KEY = "latitude"
 LONGITUDE_KEY = "longitude"
@@ -146,23 +167,42 @@ MAX_LOG_FILE_SIZE_KEY = "maxLogFileSize"
 MAX_LOG_FILE_BACKUPS_KEY = "maxLogFileBackups"
 
 #####
-# Sensor and Actuator Types
+# Sensor and Actuator Type Defaults
+#####
+DEFAULT_SENSOR_TYPE = 0
+DEFAULT_ACTUATOR_TYPE = 0
+SYSTEM_PERF_TYPE = 9000
+
+#####
+# Sensor Types
 #####
 TEMP_SENSOR_TYPE = 1
-PRESSURE_SENSOR_TYPE = 2
 HUMIDITY_SENSOR_TYPE = 3
+PRESSURE_SENSOR_TYPE = 2
+
+#####
+# Actuator Types
+#####
 HVAC_ACTUATOR_TYPE = 1
 HUMIDIFIER_ACTUATOR_TYPE = 2
 LED_DISPLAY_ACTUATOR_TYPE = 100
+LED_ACTUATOR_TYPE = 3
 
 #####
 # Actuator Commands
 #####
+DEFAULT_COMMAND = 0
 COMMAND_OFF = 0
 COMMAND_ON = 1
 COMMAND_UPDATE = 2
 COMMAND_SET_VALUE = 3
 COMMAND_GET_VALUE = 4
+
+#####
+# Actuator State
+#####
+STATE_OFF = 0
+STATE_ON = 1
 
 #####
 # Actuator Status Codes
@@ -210,6 +250,15 @@ TRUE_VALUES = ["true", "True", "TRUE", "1", "yes", "Yes", "YES", "on", "On", "ON
 FALSE_VALUES = ["false", "False", "FALSE", "0", "no", "No", "NO", "off", "Off", "OFF"]
 
 #####
+# Sensor Names
+#####
+TEMP_SENSOR_NAME = "TempSensor"
+HUMIDITY_SENSOR_NAME = "HumiditySensor"
+PRESSURE_SENSOR_NAME = "PressureSensor"
+
+SYSTEM_PERF_TYPE = "SystemPerformance"
+
+#####
 # Miscellaneous Defaults
 #####
 NOT_SET = "Not Set"
@@ -219,18 +268,3 @@ DEFAULT_TYPE_ID = 0
 DEFAULT_LOCATION_ID = "constraineddevice001"
 DEFAULT_ENCODING = "utf-8"
 DEFAULT_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
-
-# Actuator Types
-DEFAULT_ACTUATOR_TYPE = 0
-HVAC_ACTUATOR_TYPE = 1
-HUMIDIFIER_ACTUATOR_TYPE = 2
-LED_ACTUATOR_TYPE = 3
-
-# Actuator Commands
-COMMAND_OFF = 0
-COMMAND_ON = 1
-DEFAULT_COMMAND = COMMAND_OFF
-
-# Actuator State
-STATE_OFF = 0
-STATE_ON = 1

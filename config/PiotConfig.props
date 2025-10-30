@@ -16,6 +16,9 @@ enableMqttClient = True
 # Enable/disable CoAP client connectivity
 enableCoapClient = False
 
+# Enable/disable CoAP server
+enableCoapServer = True
+
 # Polling cycles (in seconds) for sensor and system performance data collection
 pollCycleSecs = 5
 
@@ -49,8 +52,8 @@ defaultQos = 1
 
 # MQTT authentication (if required by broker)
 enableAuth = False
-userName = 
-userPassword = 
+userName =
+userPassword =
 
 # MQTT topics
 actuatorCommandTopic = PIOT/ConstrainedDevice/ActuatorCmd
@@ -61,9 +64,9 @@ managementTopic = PIOT/ConstrainedDevice/MgmtStatus
 # TLS/SSL settings (for secure MQTT)
 enableTls = False
 tlsVersion = TLSv1.2
-certFile = 
-keyFile = 
-caFile = 
+certFile =
+keyFile =
+caFile =
 
 
 #####
@@ -75,12 +78,20 @@ caFile =
 host = localhost
 port = 5683
 
+# CoAP secure port
+securePort = 5684
+
 # CoAP client settings
 enableAuth = False
+enableCrypt = False
+
+# CoAP credentials and certificates
+credFile = ./cred/PiotCoapCred.props
+certFile = ./cert/PiotCoapLocalCertFile.pem
 
 
 #####
-# Cloud Gateway Service Section  
+# Cloud Gateway Service Section
 #####
 [Cloud.GatewayService]
 
@@ -88,19 +99,19 @@ enableAuth = False
 cloudProvider = AWS
 
 # Connection settings
-host = 
+host =
 port = 8883
 
 # Authentication
 enableAuth = True
-userName = 
-userPassword = 
+userName =
+userPassword =
 
 # TLS/SSL
 enableTls = True
-certFile = 
-keyFile = 
-caFile = 
+certFile =
+keyFile =
+caFile =
 
 
 #####

@@ -2,7 +2,7 @@
 Device Data Manager Module
 
 This module manages device data collection, processing, and communication
-with MQTT broker integration.
+with MQTT broker and CoAP server integration.
 
 Location: programmingtheiot/cda/app/DeviceDataManager.py
 """
@@ -18,6 +18,8 @@ from programmingtheiot.common.IDataMessageListener import IDataMessageListener
 from programmingtheiot.common.ResourceNameEnum import ResourceNameEnum
 
 from programmingtheiot.cda.connection.MqttClientConnector import MqttClientConnector
+
+from programmingtheiot.cda.connection.CoapServerAdapter import CoapServerAdapter
 
 # Import managers - create stubs if they don't exist
 try:
@@ -39,19 +41,21 @@ from programmingtheiot.data.ActuatorData import ActuatorData
 from programmingtheiot.data.SensorData import SensorData
 from programmingtheiot.data.SystemPerformanceData import SystemPerformanceData
 
+
 class DeviceDataManager(IDataMessageListener):
     """
     Main device data manager for CDA.
     
     Manages all sensor, actuator, and system performance data collection,
-    as well as MQTT client connectivity for remote communication.
+    as well as MQTT client connectivity and CoAP server for remote communication.
     """
     
     def __init__(self):
         """
         Constructor for DeviceDataManager.
         
-        Initializes configuration, managers, and MQTT client connectivity.
+        Initializes configuration, managers, MQTT client connectivity,
+        and CoAP server.
         """
         self.configUtil = ConfigUtil()
         
@@ -95,6 +99,21 @@ class DeviceDataManager(IDataMessageListener):
             self.mqttClient.setDataMessageListener(self)
         else:
             logging.info("MQTT client disabled in configuration.")
+        
+        # Initialize CoAP server based on configuration
+        self.enableCoapServer = \
+            self.configUtil.getBoolean(
+                section=ConfigConst.CONSTRAINED_DEVICE,
+                key=ConfigConst.ENABLE_COAP_SERVER_KEY
+            )
+        
+        self.coapServer = None
+        
+        if self.enableCoapServer:
+            logging.info("CoAP server enabled. Initializing CoapServerAdapter...")
+            self.coapServer = CoapServerAdapter(dataMsgListener=self)
+        else:
+            logging.info("CoAP server disabled in configuration.")
     
     def handleActuatorCommandRequest(self, data: ActuatorData) -> ActuatorData:
         """
@@ -134,7 +153,19 @@ class DeviceDataManager(IDataMessageListener):
         
         if data:
             logging.debug(f"Actuator response: {data}")
-            # Process the response (could be sent to cloud, logged, etc.)
+            
+            # If MQTT is enabled, publish the response
+            if self.mqttClient:
+                from programmingtheiot.data.DataUtil import DataUtil
+                dataUtil = DataUtil()
+                jsonData = dataUtil.actuatorDataToJson(data)
+                
+                self.mqttClient.publishMessage(
+                    resource=ResourceNameEnum.CDA_ACTUATOR_RESPONSE,
+                    msg=jsonData,
+                    qos=ConfigConst.DEFAULT_QOS
+                )
+            
             return True
         else:
             logging.warning("Received empty actuator command response.")
@@ -142,7 +173,7 @@ class DeviceDataManager(IDataMessageListener):
     
     def handleIncomingMessage(self, resourceEnum: ResourceNameEnum, msg: str) -> bool:
         """
-        Callback for handling incoming messages from MQTT.
+        Callback for handling incoming messages from MQTT or CoAP.
         
         Args:
             resourceEnum: The resource type/topic
@@ -186,7 +217,19 @@ class DeviceDataManager(IDataMessageListener):
         
         if data:
             logging.debug(f"Sensor data: {data}")
-            # Process sensor data (could be sent to cloud, stored, etc.)
+            
+            # If MQTT is enabled, publish sensor data
+            if self.mqttClient:
+                from programmingtheiot.data.DataUtil import DataUtil
+                dataUtil = DataUtil()
+                jsonData = dataUtil.sensorDataToJson(data)
+                
+                self.mqttClient.publishMessage(
+                    resource=ResourceNameEnum.CDA_SENSOR_DATA,
+                    msg=jsonData,
+                    qos=ConfigConst.DEFAULT_QOS
+                )
+            
             return True
         else:
             logging.warning("Received empty sensor message.")
@@ -206,7 +249,19 @@ class DeviceDataManager(IDataMessageListener):
         
         if data:
             logging.debug(f"System performance data: {data}")
-            # Process system performance data
+            
+            # If MQTT is enabled, publish system performance data
+            if self.mqttClient:
+                from programmingtheiot.data.DataUtil import DataUtil
+                dataUtil = DataUtil()
+                jsonData = dataUtil.systemPerformanceDataToJson(data)
+                
+                self.mqttClient.publishMessage(
+                    resource=ResourceNameEnum.CDA_SYSTEM_PERF,
+                    msg=jsonData,
+                    qos=ConfigConst.DEFAULT_QOS
+                )
+            
             return True
         else:
             logging.warning("Received empty system performance message.")
@@ -232,7 +287,7 @@ class DeviceDataManager(IDataMessageListener):
         """
         Starts the DeviceDataManager and all sub-managers.
         
-        Initializes MQTT connection and starts scheduled tasks.
+        Initializes MQTT connection, starts CoAP server, and starts scheduled tasks.
         """
         logging.info("Starting DeviceDataManager...")
         
@@ -255,13 +310,19 @@ class DeviceDataManager(IDataMessageListener):
             
             logging.info("MQTT client connected and subscribed to topics.")
         
+        # Start CoAP server if enabled
+        if self.coapServer:
+            logging.info("Starting CoAP server...")
+            self.coapServer.startServer()
+            logging.info("CoAP server started successfully.")
+        
         logging.info("DeviceDataManager started successfully.")
     
     def stopManager(self):
         """
         Stops the DeviceDataManager and all sub-managers.
         
-        Disconnects MQTT client and stops scheduled tasks.
+        Disconnects MQTT client, stops CoAP server, and stops scheduled tasks.
         """
         logging.info("Stopping DeviceDataManager...")
         
@@ -283,5 +344,11 @@ class DeviceDataManager(IDataMessageListener):
             self.mqttClient.disconnectClient()
             
             logging.info("MQTT client disconnected.")
+        
+        # Stop CoAP server if enabled
+        if self.coapServer:
+            logging.info("Stopping CoAP server...")
+            self.coapServer.stopServer()
+            logging.info("CoAP server stopped successfully.")
         
         logging.info("DeviceDataManager stopped successfully.")
