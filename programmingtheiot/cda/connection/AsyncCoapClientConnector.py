@@ -55,6 +55,10 @@ class AsyncCoapClientConnector(IRequestResponseClient):
         self._executionThread: Optional[threading.Thread] = None
         self.clientContext: Optional[Context] = None
         
+        # Dictionary to track active OBSERVE requests and tasks
+        self.observeRequests = {}
+        self.observeTasks = {}
+        
         # Start the async event loop in a separate thread
         self._startEventLoop()
         
@@ -477,6 +481,143 @@ class AsyncCoapClientConnector(IRequestResponseClient):
             logging.info("Data message listener set for AsyncCoapClientConnector")
             return True
         return False
+    
+    def startObserver(self, resource: ResourceNameEnum = None, name: str = None, ttl: int = IRequestResponseClient.DEFAULT_TTL) -> bool:
+        """
+        Start observing a resource (OBSERVE functionality).
+        
+        Args:
+            resource: The resource to observe
+            name: Optional name to extend the resource path
+            ttl: Time to live for observation in seconds (not currently used)
+            
+        Returns:
+            bool: True if observation started successfully
+        """
+        if resource or name:
+            resourcePath = self._createResourcePath(resource, name)
+            
+            if resourcePath in self.observeTasks:
+                logging.warning(f"Already observing resource {resourcePath}. Ignoring start observe request.")
+                return False
+            
+            fullPath = self.uriPath + resourcePath
+            
+            task = asyncio.run_coroutine_threadsafe(
+                self._handleStartObserveRequest(fullPath),
+                self._eventLoop
+            )
+            
+            self.observeTasks[resourcePath] = task  # Store in Tasks
+            
+            logging.info(f"Started observing: {resourcePath}")
+            return True
+        else:
+            logging.warning("Can't issue Async OBSERVE - GET - no path provided.")
+            return False
+    
+    def stopObserver(self, resource: ResourceNameEnum = None, name: str = None) -> bool:
+        """
+        Stop observing a resource.
+        
+        Args:
+            resource: The resource to stop observing
+            name: Optional name to extend the resource path
+            
+        Returns:
+            bool: True if observation stopped successfully
+        """
+        if resource or name:
+            resourcePath = self._createResourcePath(resource, name)
+            
+            if resourcePath not in self.observeTasks:  # Check Tasks
+                logging.warning(f"Resource {resourcePath} not being observed. Ignoring stop observe request.")
+                return False
+            
+            task = self.observeTasks[resourcePath]  # Get from Tasks
+            task.cancel()
+            
+            cleanup_future = asyncio.run_coroutine_threadsafe(
+                self._handleStopObserveRequest(resourcePath, ignoreErr=True),
+                self._eventLoop
+            )
+            
+            try:
+                cleanup_future.result(timeout=5.0)
+                logging.info(f"Stopped observing: {resourcePath}")
+                del self.observeTasks[resourcePath]  # Delete from Tasks
+                return True
+            except Exception as e:
+                logging.error(f"Error stopping observation: {e}")
+                return False
+        else:
+            logging.warning("Can't cancel OBSERVE - GET - no path provided.")
+            return False
+    
+    async def _handleStartObserveRequest(self, resourcePath: str = None):
+        """
+        Handle async OBSERVE start request.
+        
+        Args:
+            resourcePath: The full resource path to observe (including URI)
+        """
+        logging.info(f"Handle start observe invoked. Waiting for each input: {resourcePath}")
+        
+        try:
+            msg = Message(code=Code.GET, uri=resourcePath, observe=0)
+            req = self.clientContext.request(msg)
+            
+            # store with relative path as key
+            # needed for later cleanup
+            relativePath = resourcePath.replace(self.uriPath, "")
+            self.observeRequests[relativePath] = req
+            
+            # get initial response
+            responseData = await req.response
+            self._onGetResponse(responseData, relativePath)
+            
+            # continue observation
+            async for responseData in req.observation:
+                self._onGetResponse(responseData, relativePath)
+                
+        except asyncio.CancelledError:
+            # expected
+            logging.info(f"Observation cancelled for {resourcePath}")
+        except Exception as e:
+            logging.warning(f"Failed to execute OBSERVE - GET. Error: {e}")
+            traceback.print_exception(type(e), e, e.__traceback__)
+        finally:
+            relativePath = resourcePath.replace(self.uriPath, "")
+            
+            if relativePath in self.observeRequests:
+                del self.observeRequests[relativePath]
+    
+    async def _handleStopObserveRequest(self, resourcePath: str = None, ignoreErr: bool = False):
+        """
+        Handle async OBSERVE stop request.
+        
+        Args:
+            resourcePath: The resource path to stop observing (relative path)
+            ignoreErr: If True, suppress error logging
+        """
+        if resourcePath in self.observeRequests:
+            logging.info(f"Handle stop observe invoked: {resourcePath}")
+            
+            try:
+                observeRequest = self.observeRequests[resourcePath]
+                observeRequest.observation.cancel()
+            except Exception as e:
+                if not ignoreErr:
+                    logging.warning(f"Failed to cancel OBSERVE - GET: {resourcePath}")
+            
+            try:
+                del self.observeRequests[resourcePath]
+            except Exception as e:
+                if not ignoreErr:
+                    logging.warning(f"Failed to remove observable from list: {resourcePath}")
+        else:
+            if not ignoreErr:
+                logging.warning(f"Resource not currently under observation. Ignoring: {resourcePath}")
     
     def _createResourcePath(self, resource: ResourceNameEnum = None, name: str = None) -> str:
         """

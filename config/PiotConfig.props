@@ -14,7 +14,7 @@
 enableMqttClient = True
 
 # Enable/disable CoAP client connectivity
-enableCoapClient = False
+enableCoapClient = True
 
 # Enable/disable CoAP server
 enableCoapServer = True

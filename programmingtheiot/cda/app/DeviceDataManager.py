@@ -5,6 +5,8 @@ This module manages device data collection, processing, and communication
 with MQTT broker and CoAP server integration.
 
 Location: programmingtheiot/cda/app/DeviceDataManager.py
+
+@author: Emma
 """
 
 import logging
@@ -20,6 +22,7 @@ from programmingtheiot.common.ResourceNameEnum import ResourceNameEnum
 from programmingtheiot.cda.connection.MqttClientConnector import MqttClientConnector
 
 from programmingtheiot.cda.connection.CoapServerAdapter import CoapServerAdapter
+from programmingtheiot.cda.connection.CoapClientConnector import CoapClientConnector
 
 # Import managers - create stubs if they don't exist
 try:
@@ -47,7 +50,8 @@ class DeviceDataManager(IDataMessageListener):
     Main device data manager for CDA.
     
     Manages all sensor, actuator, and system performance data collection,
-    as well as MQTT client connectivity and CoAP server for remote communication.
+    as well as MQTT client connectivity, CoAP server, and CoAP client for 
+    remote communication.
     """
     
     def __init__(self):
@@ -55,7 +59,7 @@ class DeviceDataManager(IDataMessageListener):
         Constructor for DeviceDataManager.
         
         Initializes configuration, managers, MQTT client connectivity,
-        and CoAP server.
+        CoAP server, and CoAP client.
         """
         self.configUtil = ConfigUtil()
         
@@ -114,6 +118,21 @@ class DeviceDataManager(IDataMessageListener):
             self.coapServer = CoapServerAdapter(dataMsgListener=self)
         else:
             logging.info("CoAP server disabled in configuration.")
+        
+        # Initialize CoAP client based on configuration
+        self.enableCoapClient = \
+            self.configUtil.getBoolean(
+                section=ConfigConst.CONSTRAINED_DEVICE,
+                key=ConfigConst.ENABLE_COAP_CLIENT_KEY
+            )
+        
+        self.coapClient = None
+        
+        if self.enableCoapClient:
+            logging.info("CoAP client enabled. Initializing CoapClientConnector...")
+            self.coapClient = CoapClientConnector(dataMsgListener=self)
+        else:
+            logging.info("CoAP client disabled in configuration.")
     
     def handleActuatorCommandRequest(self, data: ActuatorData) -> ActuatorData:
         """
@@ -288,6 +307,7 @@ class DeviceDataManager(IDataMessageListener):
         Starts the DeviceDataManager and all sub-managers.
         
         Initializes MQTT connection, starts CoAP server, and starts scheduled tasks.
+        Note: CoAP client is stateless and doesn't require start/stop.
         """
         logging.info("Starting DeviceDataManager...")
         
@@ -316,6 +336,10 @@ class DeviceDataManager(IDataMessageListener):
             self.coapServer.startServer()
             logging.info("CoAP server started successfully.")
         
+        # CoAP client is stateless - no start needed
+        if self.coapClient:
+            logging.info("CoAP client initialized and ready for use.")
+        
         logging.info("DeviceDataManager started successfully.")
     
     def stopManager(self):
@@ -323,6 +347,7 @@ class DeviceDataManager(IDataMessageListener):
         Stops the DeviceDataManager and all sub-managers.
         
         Disconnects MQTT client, stops CoAP server, and stops scheduled tasks.
+        Note: CoAP client is stateless and doesn't require start/stop.
         """
         logging.info("Stopping DeviceDataManager...")
         
@@ -350,5 +375,9 @@ class DeviceDataManager(IDataMessageListener):
             logging.info("Stopping CoAP server...")
             self.coapServer.stopServer()
             logging.info("CoAP server stopped successfully.")
+        
+        # CoAP client is stateless - no stop needed
+        if self.coapClient:
+            logging.info("CoAP client resources released.")
         
         logging.info("DeviceDataManager stopped successfully.")
