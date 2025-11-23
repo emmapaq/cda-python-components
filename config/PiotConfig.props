@@ -2,36 +2,56 @@
 # Constrained Device Application (CDA) Configuration
 #
 # This configuration file contains settings for the CDA including
-# MQTT connectivity, sensor/actuator management, and system monitoring.
+# MQTT connectivity, CoAP connectivity, sensor/actuator management,
+# and system monitoring.
+#
+# @author: Emma
 #####
 
 #####
-# Constrained Device Section
+# General Device Section
 #####
 [Constrained Device]
 
-# Enable/disable MQTT client connectivity
-enableMqttClient = True
+# Device identification
+deviceLocationID = constraineddevice001
 
-# Enable/disable CoAP client connectivity
+# Enable/disable connectivity clients
+enableMqttClient = True
 enableCoapClient = True
 
 # Enable/disable CoAP server
 enableCoapServer = True
 
-# Polling cycles (in seconds) for sensor and system performance data collection
-pollCycleSecs = 5
-
-# Enable/disable specific managers
+# Enable/disable system managers
 enableSystemPerformanceManager = True
 enableSensorManager = True
 enableActuatorManager = True
 
-# Device location information
-deviceLocationID = constraineddevice001
+# Polling cycles (in seconds) for sensor and system performance data collection
+pollCycleSecs = 5
+
+# Device location information (for location-aware applications)
 latitude = 40.7128
 longitude = -74.0060
 elevation = 10.0
+
+# Trigger handling - for threshold-based actuation
+enableHandleTempChangeOnDevice = True
+enableHandlePressureChangeOnDevice = False
+enableHandleHumidityChangeOnDevice = False
+
+# Threshold values for temperature (Celsius)
+nominalTempFloor = 18.0
+nominalTempCeiling = 24.0
+
+# Threshold values for humidity (%)
+nominalHumidityFloor = 30.0
+nominalHumidityCeiling = 60.0
+
+# Threshold values for pressure (hPa)
+nominalPressureFloor = 1000.0
+nominalPressureCeiling = 1020.0
 
 
 #####
@@ -42,31 +62,38 @@ elevation = 10.0
 # MQTT broker connection settings
 host = localhost
 port = 1883
+securePort = 8883
 
 # MQTT client settings
-clientID = CDAMqttClientID001
+clientID = CDAMqttClient
 keepAlive = 60
 
-# MQTT Quality of Service (0, 1, or 2)
+# MQTT Quality of Service (0 = at most once, 1 = at least once, 2 = exactly once)
 defaultQos = 1
 
 # MQTT authentication (if required by broker)
 enableAuth = False
-userName =
-userPassword =
+userName = 
+userPassword = 
 
-# MQTT topics
-actuatorCommandTopic = PIOT/ConstrainedDevice/ActuatorCmd
+# MQTT clean session flag
+useCleanSession = True
+
+# MQTT TLS/SSL settings (for secure MQTT)
+enableEncryption = False
+pemFileName = ./cert/ca.crt
+
+# MQTT topics - CDA publishes to these
+actuatorResponseTopic = PIOT/ConstrainedDevice/ActuatorResponse
 sensorDataTopic = PIOT/ConstrainedDevice/SensorData
 systemPerfTopic = PIOT/ConstrainedDevice/SystemPerf
-managementTopic = PIOT/ConstrainedDevice/MgmtStatus
+managementStatusTopic = PIOT/ConstrainedDevice/MgmtStatusMsg
 
-# TLS/SSL settings (for secure MQTT)
-enableTls = False
-tlsVersion = TLSv1.2
-certFile =
-keyFile =
-caFile =
+# MQTT topics - CDA subscribes to these
+actuatorCommandTopic = PIOT/GatewayDevice/ActuatorCmd
+sensorCommandTopic = PIOT/GatewayDevice/SensorCmd
+systemCommandTopic = PIOT/GatewayDevice/SystemCmd
+managementCommandTopic = PIOT/GatewayDevice/MgmtCmd
 
 
 #####
@@ -77,41 +104,72 @@ caFile =
 # CoAP server connection settings
 host = localhost
 port = 5683
-
-# CoAP secure port
 securePort = 5684
 
-# CoAP client settings
+# CoAP URI paths
+uriPath = /PIOT
+
+# CoAP security settings
 enableAuth = False
 enableCrypt = False
 
 # CoAP credentials and certificates
 credFile = ./cred/PiotCoapCred.props
-certFile = ./cert/PiotCoapLocalCertFile.pem
+certFile = ./cert/PiotCoapServerCert.pem
 
 
 #####
-# Cloud Gateway Service Section
+# Cloud Gateway Service Section (for future use with cloud platforms)
 #####
 [Cloud.GatewayService]
 
-# Cloud provider settings
+# Cloud provider (AWS, Azure, GCP, etc.)
 cloudProvider = AWS
 
-# Connection settings
-host =
+# Cloud MQTT broker settings
+host = 
 port = 8883
+securePort = 8883
 
-# Authentication
+# Cloud authentication
 enableAuth = True
-userName =
-userPassword =
+userName = 
+userPassword = 
 
-# TLS/SSL
-enableTls = True
-certFile =
-keyFile =
-caFile =
+# Cloud TLS/SSL
+enableEncryption = True
+pemFileName = 
+
+# Cloud topics
+actuatorResponseTopic = PIOT/Cloud/ActuatorResponse
+sensorDataTopic = PIOT/Cloud/SensorData
+systemPerfTopic = PIOT/Cloud/SystemPerf
+managementStatusTopic = PIOT/Cloud/MgmtStatusMsg
+
+actuatorCommandTopic = PIOT/Cloud/ActuatorCmd
+sensorCommandTopic = PIOT/Cloud/SensorCmd
+systemCommandTopic = PIOT/Cloud/SystemCmd
+
+
+#####
+# SMTP (Email) Configuration Section
+#####
+[Smtp.GatewayService]
+
+# SMTP server settings
+host = smtp.gmail.com
+port = 587
+
+# SMTP authentication
+enableAuth = True
+userName = 
+userPassword = 
+
+# Email addresses
+fromAddr = noreply@example.com
+toAddr = 
+toMediaAddr = 
+toTxtAddr = 
 
 
 #####
@@ -119,20 +177,46 @@ caFile =
 #####
 [SensorSimulator]
 
-# Temperature sensor settings
+# Enable/disable specific sensors
 enableTempSensor = True
+enableHumiditySensor = True
+enablePressureSensor = True
+
+# Temperature sensor settings (Celsius)
 tempSensorMinValue = 18.0
 tempSensorMaxValue = 28.0
+tempSensorMeanValue = 20.0
+tempSensorStdDev = 2.0
 
-# Humidity sensor settings
-enableHumiditySensor = True
+# Humidity sensor settings (%)
 humiditySensorMinValue = 30.0
 humiditySensorMaxValue = 70.0
+humiditySensorMeanValue = 50.0
+humiditySensorStdDev = 5.0
 
-# Pressure sensor settings
-enablePressureSensor = True
+# Pressure sensor settings (hPa)
 pressureSensorMinValue = 990.0
 pressureSensorMaxValue = 1020.0
+pressureSensorMeanValue = 1013.0
+pressureSensorStdDev = 3.0
+
+
+#####
+# Sense HAT Configuration Section
+#####
+[SenseHAT.DeviceConfig]
+
+# Enable/disable Sense HAT (if available)
+enableSenseHAT = False
+
+# Enable/disable specific Sense HAT sensors
+enableTempSensor = True
+enableHumiditySensor = True
+enablePressureSensor = True
+
+# Enable/disable Sense HAT emulator
+enableEmulator = True
+enableLedDisplay = True
 
 
 #####
@@ -140,14 +224,45 @@ pressureSensorMaxValue = 1020.0
 #####
 [ActuatorSimulator]
 
-# HVAC actuator settings
+# Enable/disable specific actuators
 enableHvacActuator = True
-
-# Humidifier actuator settings
 enableHumidifierActuator = True
-
-# LED actuator settings
 enableLedActuator = False
+
+# Actuator response times (seconds)
+hvacActuatorResponseTime = 2.0
+humidifierActuatorResponseTime = 1.5
+
+
+#####
+# GPIO (General Purpose Input/Output) Configuration
+#####
+[GPIO.Config]
+
+# Enable/disable GPIO functionality
+enableGPIO = False
+
+# GPIO pin assignments
+ledPin = 18
+buttonPin = 23
+
+
+#####
+# Data Persistence Section
+#####
+[Data.PersistenceConfig]
+
+# Enable/disable data persistence
+enablePersistence = False
+
+# Persistence type (file, database, etc.)
+persistenceType = file
+
+# File persistence settings
+dataFileDir = ./data
+sensorDataFile = sensorData.csv
+actuatorDataFile = actuatorData.csv
+systemPerfDataFile = systemPerf.csv
 
 
 #####
@@ -163,3 +278,152 @@ enableFileLogging = False
 logFilePath = ./logs/cda.log
 maxLogFileSize = 10485760
 maxLogFileBackups = 5
+
+# Console logging
+enableConsoleLogging = True
+
+
+#####
+# System Performance Monitoring Section
+#####
+[SystemPerformanceManager]
+
+# CPU utilization thresholds (%)
+cpuUtilizationFloor = 0.0
+cpuUtilizationCeiling = 90.0
+
+# Memory utilization thresholds (%)
+memUtilizationFloor = 0.0
+memUtilizationCeiling = 85.0
+
+# Disk utilization thresholds (%)
+diskUtilizationFloor = 0.0
+diskUtilizationCeiling = 95.0
+
+
+#####
+# Test and Development Section
+#####
+[TestConfig]
+
+# Enable/disable test mode
+enableTestMode = False
+
+# Test data generation
+generateTestData = False
+testDataInterval = 5
+
+# Mock external services
+mockMqttBroker = False
+mockCoapServer = False
+
+
+#####
+# Advanced Configuration Section
+#####
+[Advanced]
+
+# Message processing
+enableAsyncMessageProcessing = True
+messageQueueSize = 100
+
+# Connection retry settings
+maxConnectionRetries = 3
+connectionRetryInterval = 5
+
+# Heartbeat settings
+enableHeartbeat = True
+heartbeatInterval = 30
+
+# Data validation
+enableDataValidation = True
+validateSensorData = True
+validateActuatorData = True
+
+# Buffering settings
+enableDataBuffering = False
+maxBufferSize = 1000
+
+
+#####
+# Feature Flags Section
+#####
+[FeatureFlags]
+
+# Lab Module 10 specific features
+enableThresholdCrossing = True
+enableAdaptiveThresholds = True
+enableEdgeAnalytics = False
+
+# Future features
+enableMachineLearning = False
+enablePredictiveAnalytics = False
+enableAnomalyDetection = False
+
+
+#####
+# Resource Names Section (Topic/URI mappings)
+#####
+[ResourceNames]
+
+# CDA -> GDA messages
+CDA_ACTUATOR_RESPONSE_RESOURCE = PIOT/ConstrainedDevice/ActuatorResponse
+CDA_SENSOR_MSG_RESOURCE = PIOT/ConstrainedDevice/SensorData
+CDA_SYSTEM_PERF_MSG_RESOURCE = PIOT/ConstrainedDevice/SystemPerf
+CDA_MGMT_STATUS_MSG_RESOURCE = PIOT/ConstrainedDevice/MgmtStatusMsg
+CDA_UPDATE_NOTIFICATIONS_MSG_RESOURCE = PIOT/ConstrainedDevice/UpdateMsg
+
+# GDA -> CDA messages
+GDA_ACTUATOR_CMD_RESOURCE = PIOT/GatewayDevice/ActuatorCmd
+GDA_SENSOR_CMD_RESOURCE = PIOT/GatewayDevice/SensorCmd
+GDA_SYSTEM_CMD_RESOURCE = PIOT/GatewayDevice/SystemCmd
+GDA_MGMT_CMD_RESOURCE = PIOT/GatewayDevice/MgmtCmd
+
+# CoAP specific resources
+COAP_ACTUATOR_CMD_RESOURCE = /PIOT/ConstrainedDevice/ActuatorCmd
+COAP_SENSOR_DATA_RESOURCE = /PIOT/ConstrainedDevice/SensorData
+COAP_SYSTEM_PERF_RESOURCE = /PIOT/ConstrainedDevice/SystemPerf
+
+
+#####
+# Security Section
+#####
+[Security]
+
+# API keys (if required)
+apiKey = 
+
+# Token-based authentication
+enableTokenAuth = False
+authToken = 
+
+# Certificate pinning
+enableCertPinning = False
+pinnedCertFingerprint = 
+
+
+#####
+# Notification Section
+#####
+[Notifications]
+
+# Email notifications
+enableEmailNotifications = False
+
+# SMS notifications  
+enableSmsNotifications = False
+
+# Push notifications
+enablePushNotifications = False
+
+# Notification thresholds
+notifyOnCriticalTemp = True
+criticalTempThreshold = 30.0
+
+notifyOnCriticalHumidity = False
+criticalHumidityThreshold = 80.0
+
+
+#####
+# End of Configuration File
+#####

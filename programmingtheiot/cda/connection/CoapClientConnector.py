@@ -165,16 +165,6 @@ class CoapClientConnector(IRequestResponseClient):
     def sendPostRequest(self, resource: ResourceNameEnum = None, name: str = None, enableCON: bool = False, payload: str = None, timeout: int = IRequestResponseClient.DEFAULT_TIMEOUT) -> bool:
         """
         Send a CoAP POST request.
-        
-        Args:
-            resource: The resource to POST to
-            name: Optional name to extend the resource path
-            enableCON: If True, use confirmable message
-            payload: The data payload to send
-            timeout: Request timeout in seconds
-            
-        Returns:
-            bool: True if POST request sent successfully
         """
         if resource or name:
             # Create client for this request
@@ -183,7 +173,8 @@ class CoapClientConnector(IRequestResponseClient):
             
             resourcePath = self._createResourcePath(resource, name)
             
-            logging.info(f"Issuing POST with path: {resourcePath}")
+            # PERFORMANCE TESTING: Comment out during performance tests
+            # logging.info(f"Issuing POST with path: {resourcePath}")
             
             request = self.coapClient.mk_request(defines.Codes.POST, path=resourcePath)
             request.token = generate_random_token(2)
@@ -192,7 +183,8 @@ class CoapClientConnector(IRequestResponseClient):
             if not enableCON:
                 request.type = defines.Types["NON"]
             
-            logging.info(f"Sending POST with payload: {payload}")
+            # PERFORMANCE TESTING: Comment out during performance tests
+            # logging.info(f"Sending POST with payload: {payload}")
             
             self.coapClient.send_request(request=request, callback=self._onPostResponse, timeout=timeout)
             
@@ -200,33 +192,22 @@ class CoapClientConnector(IRequestResponseClient):
         else:
             logging.warning("Can't test POST - no path or path list provided.")
             return False
-    
+
     def _onPostResponse(self, response):
         """
         Callback method for handling POST responses.
-        
-        Args:
-            response: CoAPthon3 response object
         """
         if not response:
             logging.warning("POST response invalid. Ignoring.")
             return
         
-        logging.info(f"POST response received: {response.payload}")
-    
+        # PERFORMANCE TESTING: Comment out during performance tests
+        # logging.info(f"POST response received: {response.payload}")
+        pass
+
     def sendPutRequest(self, resource: ResourceNameEnum = None, name: str = None, enableCON: bool = False, payload: str = None, timeout: int = IRequestResponseClient.DEFAULT_TIMEOUT) -> bool:
         """
         Send a CoAP PUT request.
-        
-        Args:
-            resource: The resource to PUT to
-            name: Optional name to extend the resource path
-            enableCON: If True, use confirmable message
-            payload: The data payload to send
-            timeout: Request timeout in seconds
-            
-        Returns:
-            bool: True if PUT request sent successfully
         """
         if resource or name:
             # Create client for this request
@@ -235,7 +216,8 @@ class CoapClientConnector(IRequestResponseClient):
             
             resourcePath = self._createResourcePath(resource, name)
             
-            logging.info(f"Issuing PUT with path: {resourcePath}")
+            # PERFORMANCE TESTING: Comment out during performance tests
+            # logging.info(f"Issuing PUT with path: {resourcePath}")
             
             request = self.coapClient.mk_request(defines.Codes.PUT, path=resourcePath)
             request.token = generate_random_token(2)
@@ -250,19 +232,18 @@ class CoapClientConnector(IRequestResponseClient):
         else:
             logging.warning("Can't test PUT - no path or path list provided.")
             return False
-    
+
     def _onPutResponse(self, response):
         """
         Callback method for handling PUT responses.
-        
-        Args:
-            response: CoAPthon3 response object
         """
         if not response:
             logging.warning("PUT response invalid. Ignoring.")
             return
         
-        logging.info(f"PUT response received: {response.payload}")
+        # PERFORMANCE TESTING: Comment out during performance tests
+        # logging.info(f"PUT response received: {response.payload}")
+        pass
     
     def sendDeleteRequest(self, resource: ResourceNameEnum = None, name: str = None, enableCON: bool = False, timeout: int = IRequestResponseClient.DEFAULT_TIMEOUT) -> bool:
         """

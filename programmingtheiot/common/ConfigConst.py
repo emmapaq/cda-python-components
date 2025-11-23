@@ -124,10 +124,12 @@ USER_NAME_KEY = "userName"
 USER_PASSWORD_KEY = "userPassword"
 CRED_FILE_KEY = "credFile"
 ENABLE_TLS_KEY = "enableTls"
+ENABLE_CRYPT_KEY = "enableEncryption"
 TLS_VERSION_KEY = "tlsVersion"
-CERT_FILE_KEY = "certFile"
+CERT_FILE_KEY = "pemFileName"
 KEY_FILE_KEY = "keyFile"
 CA_CERT_FILE_KEY = "caFile"
+
 
 #####
 # Configuration Keys - MQTT Topics

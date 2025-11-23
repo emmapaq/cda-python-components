@@ -1,13 +1,5 @@
-"""
-MqttClientConnector module for handling MQTT pub/sub operations.
-
-This module provides MQTT client connectivity for the Constrained Device Application (CDA),
-implementing the IPubSubClient interface using the Paho MQTT client library.
-
-@author: Your Name
-"""
-
 import logging
+import ssl
 import paho.mqtt.client as mqttClient
 
 import programmingtheiot.common.ConfigConst as ConfigConst
@@ -18,6 +10,8 @@ from programmingtheiot.common.ResourceNameEnum import ResourceNameEnum
 
 from programmingtheiot.cda.connection.IPubSubClient import IPubSubClient
 
+from programmingtheiot.data.DataUtil import DataUtil
+
 
 class MqttClientConnector(IPubSubClient):
     """
@@ -25,6 +19,7 @@ class MqttClientConnector(IPubSubClient):
     
     Handles connection, disconnection, publishing, and subscribing to MQTT broker.
     Implements callback mechanisms for message handling and connection events.
+    Supports TLS/SSL encryption for secure connections.
     """
     
     def __init__(self, clientID: str = None):
@@ -66,23 +61,21 @@ class MqttClientConnector(IPubSubClient):
                 ConfigConst.DEFAULT_QOS_KEY, 
                 ConfigConst.DEFAULT_QOS)
         
+        # Encryption properties
+        self.enableEncryption = \
+            self.config.getBoolean(
+                ConfigConst.MQTT_GATEWAY_SERVICE, 
+                ConfigConst.ENABLE_CRYPT_KEY)
+        
+        self.pemFileName = \
+            self.config.getProperty(
+                ConfigConst.MQTT_GATEWAY_SERVICE, 
+                ConfigConst.CERT_FILE_KEY)
+        
         self.mqttClient = None
         
-        # IMPORTANT:
-        # 
-        # You can choose to set clientID in a number of ways:
-        #  1 - use the deviceLocationID value in PiotConfig.props as the clientID (see below)
-        #  2 - pass a custom clientID into constructor (from DeviceDataManager or your test)
-        #  3 - hard code a clientID in this constructor (generally not recommended)
-        #  4 - if using Python Paho, set NO client ID and let broker auto-assign
-        #      a random value (not recommended if setting clean session flag to False)
-        
-        # NOTE: There are other ways to implement this logic, esp. if you
-        # want to ensure the clientID passed into the constructor always
-        # takes precedent. This is only one viable solution.
-        
+        # Set client ID
         if not clientID:
-            # Use a default client ID - customize this for your implementation
             clientID = 'CDAMqttClientID001'
         
         self.clientID = \
@@ -100,6 +93,7 @@ class MqttClientConnector(IPubSubClient):
         logging.info('\tMQTT Broker Host: ' + self.host)
         logging.info('\tMQTT Broker Port: ' + str(self.port))
         logging.info('\tMQTT Keep Alive:  ' + str(self.keepAlive))
+        logging.info('\tEncryption:       ' + str(self.enableEncryption))
     
     
     def connectClient(self) -> bool:
@@ -110,6 +104,8 @@ class MqttClientConnector(IPubSubClient):
         handlers, and establishes connection to the broker. Starts the network loop
         for handling incoming/outgoing messages.
         
+        If encryption is enabled, configures TLS/SSL before connecting.
+        
         Returns:
             bool: True if connection initiated, False if already connected
         """
@@ -119,6 +115,27 @@ class MqttClientConnector(IPubSubClient):
             self.mqttClient = mqttClient.Client(
                 client_id=self.clientID, 
                 clean_session=True)
+            
+            try:
+                if self.enableEncryption:
+                    logging.info("Enabling TLS encryption...")
+                    
+                    # Update port to secure port
+                    self.port = \
+                        self.config.getInteger(
+                            ConfigConst.MQTT_GATEWAY_SERVICE, 
+                            ConfigConst.SECURE_PORT_KEY, 
+                            ConfigConst.DEFAULT_MQTT_SECURE_PORT)
+                    
+                    self.mqttClient.tls_set(
+                        self.pemFileName, 
+                        tls_version=ssl.PROTOCOL_TLS_CLIENT)
+                    
+                    logging.info("TLS encryption enabled with cert: " + str(self.pemFileName))
+                    logging.info("Using secure port: " + str(self.port))
+            except Exception as e:
+                logging.warning("Failed to enable TLS encryption: " + str(e))
+                logging.warning("Using unencrypted connection.")
             
             # Set up callback handlers
             self.mqttClient.on_connect = self.onConnect
@@ -142,11 +159,6 @@ class MqttClientConnector(IPubSubClient):
     def disconnectClient(self) -> bool:
         """
         Disconnects from the MQTT broker.
-        
-        Stops the network loop and disconnects from the broker if currently connected.
-        
-        Returns:
-            bool: True if disconnection initiated, False if already disconnected
         """
         if self.mqttClient and self.mqttClient.is_connected():
             logging.info('Disconnecting MQTT client from broker: ' + self.host)
@@ -164,13 +176,7 @@ class MqttClientConnector(IPubSubClient):
         """
         Publishes a message to the specified topic.
         
-        Args:
-            resource (ResourceNameEnum): The resource name enum representing the topic
-            msg (str): The message payload to publish
-            qos (int): Quality of Service level (0, 1, or 2). Defaults to DEFAULT_QOS.
-        
-        Returns:
-            bool: True if message published successfully, False otherwise
+        NOTE: wait_for_publish() is commented out to prevent blocking/deadlock.
         """
         # Check validity of resource (topic)
         if not resource:
@@ -186,24 +192,20 @@ class MqttClientConnector(IPubSubClient):
         if qos < 0 or qos > 2:
             qos = ConfigConst.DEFAULT_QOS
         
-        # Publish message, and wait for publish to complete before returning
+        # Publish message
         msgInfo = self.mqttClient.publish(topic=resource.value, payload=msg, qos=qos)
-        msgInfo.wait_for_publish()
         
+        # COMMENTED OUT for Lab Module 10 - prevents blocking/deadlock
+        # msgInfo.wait_for_publish()
+        
+        # NOTE: The 'True' return no longer guarantees successful publish,
+        # as it will return before the publish may successfully complete
         return True
     
     
     def subscribeToTopic(self, resource: ResourceNameEnum = None, callback = None, qos: int = ConfigConst.DEFAULT_QOS) -> bool:
         """
         Subscribes to the specified topic.
-        
-        Args:
-            resource (ResourceNameEnum): The resource name enum representing the topic
-            callback: Optional callback function (not currently used)
-            qos (int): Quality of Service level (0, 1, or 2). Defaults to DEFAULT_QOS.
-        
-        Returns:
-            bool: True if subscription initiated successfully, False otherwise
         """
         # Check validity of resource (topic)
         if not resource:
@@ -224,12 +226,6 @@ class MqttClientConnector(IPubSubClient):
     def unsubscribeFromTopic(self, resource: ResourceNameEnum = None) -> bool:
         """
         Unsubscribes from the specified topic.
-        
-        Args:
-            resource (ResourceNameEnum): The resource name enum representing the topic
-        
-        Returns:
-            bool: True if unsubscription initiated successfully, False otherwise
         """
         # Check validity of resource (topic)
         if not resource:
@@ -245,9 +241,6 @@ class MqttClientConnector(IPubSubClient):
     def setDataMessageListener(self, listener: IDataMessageListener = None):
         """
         Sets the data message listener for handling incoming messages.
-        
-        Args:
-            listener (IDataMessageListener): The listener to receive message callbacks
         """
         if listener:
             self.dataMsgListener = listener
@@ -264,34 +257,31 @@ class MqttClientConnector(IPubSubClient):
         """
         Callback for when the client receives a CONNACK response from the broker.
         
-        Args:
-            client: The client instance for this callback
-            userdata: The private user data as set in Client() or userdata_set()
-            flags: Response flags sent by the broker
-            rc: The connection result code
+        Subscribes to actuator command topic upon successful connection.
         """
         if rc == 0:
-            logging.info('MQTT client connected successfully to broker: ' + self.host)
+            logging.info('[Callback] Connected to MQTT broker. Result code: ' + str(rc))
+            
+            # Subscribe to actuator command topic
+            self.mqttClient.subscribe(
+                topic=ResourceNameEnum.CDA_ACTUATOR_CMD.value,
+                qos=self.defaultQos
+            )
+            
+            # Add topic-specific callback for actuator commands
+            self.mqttClient.message_callback_add(
+                sub=ResourceNameEnum.CDA_ACTUATOR_CMD.value,
+                callback=self.onActuatorCommandMessage
+            )
+            
+            logging.info('Subscribed to actuator command topic: ' + ResourceNameEnum.CDA_ACTUATOR_CMD.value)
         else:
             logging.error('MQTT client connection failed with result code: ' + str(rc))
-            
-            # Result codes:
-            # 0: Connection successful
-            # 1: Connection refused - incorrect protocol version
-            # 2: Connection refused - invalid client identifier
-            # 3: Connection refused - server unavailable
-            # 4: Connection refused - bad username or password
-            # 5: Connection refused - not authorized
     
     
     def onDisconnect(self, client, userdata, rc):
         """
         Callback for when the client disconnects from the broker.
-        
-        Args:
-            client: The client instance for this callback
-            userdata: The private user data as set in Client() or userdata_set()
-            rc: The disconnection result code
         """
         if rc == 0:
             logging.info('MQTT client disconnected gracefully from broker.')
@@ -299,18 +289,37 @@ class MqttClientConnector(IPubSubClient):
             logging.warning('MQTT client disconnected unexpectedly. Result code: ' + str(rc))
     
     
+    def onActuatorCommandMessage(self, client, userdata, msg):
+        """
+        Callback for actuator command messages received from GDA.
+        
+        This is a topic-specific callback that handles ActuatorData commands.
+        
+        Args:
+            client: The MQTT client instance
+            userdata: User data
+            msg: The MQTT message containing actuator command
+        """
+        logging.info('[Callback] Actuator command message received. Topic: %s.', msg.topic)
+        
+        if self.dataMsgListener:
+            try:
+                # Assumes all data is encoded using UTF-8 (between GDA and CDA)
+                actuatorData = DataUtil().jsonToActuatorData(msg.payload.decode('utf-8'))
+                
+                # Delegate to DeviceDataManager
+                self.dataMsgListener.handleActuatorCommandMessage(actuatorData)
+            except Exception as e:
+                logging.exception("Failed to convert incoming actuation command payload to ActuatorData: ")
+        else:
+            logging.warning("No data message listener set. Actuator command ignored.")
+    
+    
     def onMessage(self, client, userdata, message):
         """
         Callback for when a PUBLISH message is received from the broker.
         
-        NOTE: You may need to delegate this callback functionality to a separate
-        thread depending on your anticipated future use case. This will be discussed
-        further in Lab Module 10.
-        
-        Args:
-            client: The client instance for this callback
-            userdata: The private user data as set in Client() or userdata_set()
-            message: An instance of MQTTMessage with properties: topic, payload, qos, retain
+        This is the default message handler for topics without specific callbacks.
         """
         try:
             topic = message.topic
@@ -347,24 +356,15 @@ class MqttClientConnector(IPubSubClient):
     def onPublish(self, client, userdata, mid):
         """
         Callback for when a message has been sent to the broker.
-        
-        Args:
-            client: The client instance for this callback
-            userdata: The private user data as set in Client() or userdata_set()
-            mid: The message ID of the published message
         """
-        logging.debug('Message published with ID: ' + str(mid))
+        # PERFORMANCE TESTING: Comment out during performance tests
+        # logging.debug('Message published with ID: ' + str(mid))
+        pass
     
     
     def onSubscribe(self, client, userdata, mid, granted_qos):
         """
         Callback for when the broker responds to a subscribe request.
-        
-        Args:
-            client: The client instance for this callback
-            userdata: The private user data as set in Client() or userdata_set()
-            mid: The message ID of the subscribe request
-            granted_qos: A list of integers giving the QoS level the broker granted
         """
         logging.debug('Subscription confirmed with message ID: ' + str(mid))
         logging.debug('Granted QoS: ' + str(granted_qos))
