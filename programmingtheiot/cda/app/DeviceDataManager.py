@@ -10,6 +10,7 @@ Location: programmingtheiot/cda/app/DeviceDataManager.py
 """
 
 import logging
+import time
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -149,6 +150,19 @@ class DeviceDataManager(IDataMessageListener):
         
         logging.info("DeviceDataManager initialization complete.")
     
+            # Fermentation-specific attributes
+        self.currentFermentationProfile = ConfigConst.FERMENTATION_PROFILE_ALE
+        self.currentTempMin = ConfigConst.ALE_TEMP_MIN
+        self.currentTempMax = ConfigConst.ALE_TEMP_MAX
+        self.currentHumidityMin = ConfigConst.ALE_HUMIDITY_MIN
+        self.currentHumidityMax = ConfigConst.ALE_HUMIDITY_MAX
+        
+        # Temperature spike detection
+        self.recentTemperatures = []  # Store last N readings
+        self.maxTempHistorySize = 15   # 30 minutes at 2-min intervals
+        
+        # LED state tracking
+        self.currentLedState = ConfigConst.LED_OPTIMAL_CMD
     
     # =========================================================================
     # IDataMessageListener Interface Implementation - Message Handlers
@@ -547,3 +561,310 @@ class DeviceDataManager(IDataMessageListener):
         """
         # TODO: Implement if needed
         return True
+    
+    def _handleFermentationProfileCommand(self, data: ActuatorData) -> bool:
+        """
+        Process fermentation profile change commands from GDA/Cloud.
+        
+        Expected ActuatorData format:
+        - actuatorType: FERMENTATION_PROFILE_ACTUATOR_TYPE
+        - command: Profile name (ALE, LAGER, CONDITIONING, COLD_CRASH)
+        """
+        if data.getCommand():
+            profileName = data.getCommand().upper()
+            
+            logging.info(f"Received profile change command: {profileName}")
+            
+            if profileName == ConfigConst.FERMENTATION_PROFILE_ALE:
+                self.currentTempMin = ConfigConst.ALE_TEMP_MIN
+                self.currentTempMax = ConfigConst.ALE_TEMP_MAX
+                self.currentHumidityMin = ConfigConst.ALE_HUMIDITY_MIN
+                self.currentHumidityMax = ConfigConst.ALE_HUMIDITY_MAX
+                self.currentFermentationProfile = profileName
+                
+            elif profileName == ConfigConst.FERMENTATION_PROFILE_LAGER:
+                self.currentTempMin = ConfigConst.LAGER_TEMP_MIN
+                self.currentTempMax = ConfigConst.LAGER_TEMP_MAX
+                self.currentHumidityMin = ConfigConst.LAGER_HUMIDITY_MIN
+                self.currentHumidityMax = ConfigConst.LAGER_HUMIDITY_MAX
+                self.currentFermentationProfile = profileName
+                
+            elif profileName == ConfigConst.FERMENTATION_PROFILE_CONDITIONING:
+                self.currentTempMin = ConfigConst.CONDITIONING_TEMP_MIN
+                self.currentTempMax = ConfigConst.CONDITIONING_TEMP_MAX
+                self.currentHumidityMin = ConfigConst.CONDITIONING_HUMIDITY_MIN
+                self.currentHumidityMax = ConfigConst.CONDITIONING_HUMIDITY_MAX
+                self.currentFermentationProfile = profileName
+                
+            elif profileName == ConfigConst.FERMENTATION_PROFILE_COLD_CRASH:
+                self.currentTempMin = ConfigConst.COLD_CRASH_TEMP_MIN
+                self.currentTempMax = ConfigConst.COLD_CRASH_TEMP_MAX
+                self.currentHumidityMin = ConfigConst.COLD_CRASH_HUMIDITY_MIN
+                self.currentHumidityMax = ConfigConst.COLD_CRASH_HUMIDITY_MAX
+                self.currentFermentationProfile = profileName
+                
+            else:
+                logging.warning(f"Unknown fermentation profile: {profileName}")
+                return False
+            
+            logging.info(f"Profile changed to {profileName}: Temp [{self.currentTempMin}-{self.currentTempMax}], Humidity [{self.currentHumidityMin}-{self.currentHumidityMax}]")
+            
+            # Update LED to show profile change
+            self._updateLedDisplay(f"Profile: {profileName}")
+            
+            return True
+        
+        return False
+    
+        
+    def handleSensorData(self, data: SensorData) -> bool:
+        """
+        Enhanced sensor data handler with fermentation-specific logic.
+        """
+        if data:
+            logging.info(f"Handling sensor data: {data.getName()}")
+            
+            # Store temperature readings for spike detection
+            if data.getTypeID() == ConfigConst.TEMP_SENSOR_TYPE:
+                self._trackTemperatureHistory(data.getValue())
+                
+                # Check for temperature spike (possible infection indicator)
+                if self._detectTemperatureSpike():
+                    logging.warning("Temperature spike detected! Possible fermentation issue.")
+                    self._triggerAlert("TEMP_SPIKE")
+            
+            # Existing threshold checking
+            if data.getTypeID() == ConfigConst.TEMP_SENSOR_TYPE:
+                self._handleTemperatureThreshold(data)
+            elif data.getTypeID() == ConfigConst.HUMIDITY_SENSOR_TYPE:
+                self._handleHumidityThreshold(data)
+            elif data.getTypeID() == ConfigConst.PRESSURE_SENSOR_TYPE:
+                self._handlePressureData(data)
+            
+            return True
+        
+        return False
+    
+    def _trackTemperatureHistory(self, temp: float):
+        """
+        Track recent temperature readings for spike detection.
+        """
+        self.recentTemperatures.append({
+            'value': temp,
+            'timestamp': time.time()
+        })
+        
+        # Keep only last N readings
+        if len(self.recentTemperatures) > self.maxTempHistorySize:
+            self.recentTemperatures.pop(0)
+    
+    def _detectTemperatureSpike(self) -> bool:
+        """
+        Detect rapid temperature increase (indicator of infection or equipment failure).
+        Returns True if spike detected.
+        """
+        if len(self.recentTemperatures) < 2:
+            return False
+        
+        # Check last 30 minutes (15 readings at 2-min intervals)
+        oldest = self.recentTemperatures[0]
+        newest = self.recentTemperatures[-1]
+        
+        timeDelta = newest['timestamp'] - oldest['timestamp']
+        tempDelta = newest['value'] - oldest['value']
+        
+        # If temp increased by more than threshold in ~30 mins
+        if timeDelta >= 1800 and tempDelta >= ConfigConst.TEMP_SPIKE_THRESHOLD:
+            return True
+        
+        return False
+    
+    def _handleTemperatureThreshold(self, data: SensorData):
+        """
+        Handle temperature threshold crossings with fermentation profile awareness.
+        """
+        temp = data.getValue()
+        
+        # Critical thresholds (profile-independent)
+        if temp >= ConfigConst.TEMP_CRITICAL_HIGH:
+            logging.critical(f"CRITICAL: Temperature {temp}F exceeds safe maximum!")
+            self._triggerCriticalCooling()
+            self._updateLedDisplay(f"CRITICAL HIGH: {temp}F!", ConfigConst.LED_ALERT_CMD)
+            return
+        
+        if temp <= ConfigConst.TEMP_CRITICAL_LOW:
+            logging.critical(f"CRITICAL: Temperature {temp}F below freezing!")
+            self._triggerEmergencyHeating()
+            self._updateLedDisplay(f"CRITICAL LOW: {temp}F!", ConfigConst.LED_ALERT_CMD)
+            return
+        
+        # Profile-specific thresholds
+        if temp > self.currentTempMax:
+            logging.warning(f"Temperature {temp}F above target max {self.currentTempMax}F")
+            self._activateCooling()
+            self._updateLedDisplay(f"Cooling: {temp}F", ConfigConst.LED_ACTIVE_CMD)
+            
+        elif temp < self.currentTempMin:
+            logging.warning(f"Temperature {temp}F below target min {self.currentTempMin}F")
+            self._activateHeating()
+            self._updateLedDisplay(f"Heating: {temp}F", ConfigConst.LED_ACTIVE_CMD)
+            
+        else:
+            # Temperature within range
+            self._deactivateHvac()
+            self._updateLedDisplay(f"Optimal: {temp}F", ConfigConst.LED_OPTIMAL_CMD)
+    
+    def _handleHumidityThreshold(self, data: SensorData):
+        """
+        Handle humidity threshold crossings with fermentation profile awareness.
+        """
+        humidity = data.getValue()
+        
+        # Critical thresholds
+        if humidity <= ConfigConst.HUMIDITY_CRITICAL_LOW:
+            logging.critical(f"CRITICAL: Humidity {humidity}% dangerously low!")
+            self._triggerMaxHumidification()
+            return
+        
+        if humidity >= ConfigConst.HUMIDITY_CRITICAL_HIGH:
+            logging.warning(f"WARNING: Humidity {humidity}% very high!")
+            self._deactivateHumidifier()
+            return
+        
+        # Profile-specific thresholds
+        if humidity < self.currentHumidityMin:
+            logging.info(f"Humidity {humidity}% below target min {self.currentHumidityMin}%")
+            self._activateHumidifier()
+            
+        elif humidity > self.currentHumidityMax:
+            logging.info(f"Humidity {humidity}% above target max {self.currentHumidityMax}%")
+            self._deactivateHumidifier()
+            
+        else:
+            # Humidity within range - could deactivate if currently on
+            pass
+    
+    def _handlePressureData(self, data: SensorData):
+        """
+        Handle pressure data - useful for fermentation activity detection.
+        In a real system, rising pressure indicates CO2 production (active fermentation).
+        """
+        pressure = data.getValue()
+        logging.info(f"Pressure reading: {pressure} kPa")
+        
+        # Could implement fermentation activity detection here
+        # For now, just log the data
+        
+    def _activateCooling(self):
+        """
+        Activate HVAC in cooling mode.
+        """
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.HVAC_ACTUATOR_TYPE)
+        actuatorData.setCommand(ConfigConst.HVAC_COOLING_CMD)
+        actuatorData.setValue(1.0)  # Full power
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+        logging.info("HVAC cooling activated")
+
+    def _activateHeating(self):
+        """
+        Activate HVAC in heating mode.
+        """
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.HVAC_ACTUATOR_TYPE)
+        actuatorData.setCommand(ConfigConst.HVAC_HEATING_CMD)
+        actuatorData.setValue(1.0)
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+        logging.info("HVAC heating activated")
+
+    def _deactivateHvac(self):
+        """
+        Turn off HVAC system.
+        """
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.HVAC_ACTUATOR_TYPE)
+        actuatorData.setCommand(ConfigConst.HVAC_OFF_CMD)
+        actuatorData.setValue(0.0)
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+
+    def _activateHumidifier(self):
+        """
+        Activate humidifier.
+        """
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.HUMIDIFIER_ACTUATOR_TYPE)
+        actuatorData.setCommand(ConfigConst.HUMIDIFIER_ON_CMD)
+        actuatorData.setValue(1.0)
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+        logging.info("Humidifier activated")
+
+    def _deactivateHumidifier(self):
+        """
+        Deactivate humidifier.
+        """
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.HUMIDIFIER_ACTUATOR_TYPE)
+        actuatorData.setCommand(ConfigConst.HUMIDIFIER_OFF_CMD)
+        actuatorData.setValue(0.0)
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+
+    def _triggerCriticalCooling(self):
+        """
+        Emergency cooling - maximum power.
+        """
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.HVAC_ACTUATOR_TYPE)
+        actuatorData.setCommand(ConfigConst.HVAC_COOLING_CMD)
+        actuatorData.setValue(2.0)  # Max power indicator
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+        logging.critical("EMERGENCY COOLING ACTIVATED")
+
+    def _triggerEmergencyHeating(self):
+        """
+        Emergency heating - maximum power.
+        """
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.HVAC_ACTUATOR_TYPE)
+        actuatorData.setCommand(ConfigConst.HVAC_HEATING_CMD)
+        actuatorData.setValue(2.0)
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+        logging.critical("EMERGENCY HEATING ACTIVATED")
+
+    def _triggerMaxHumidification(self):
+        """
+        Maximum humidification.
+        """
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.HUMIDIFIER_ACTUATOR_TYPE)
+        actuatorData.setCommand(ConfigConst.HUMIDIFIER_ON_CMD)
+        actuatorData.setValue(2.0)
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+        logging.critical("MAXIMUM HUMIDIFICATION ACTIVATED")
+
+    def _updateLedDisplay(self, message: str, state: str = None):
+        """
+        Update LED display with message and optional state.
+        """
+        if state and state != self.currentLedState:
+            self.currentLedState = state
+        
+        actuatorData = ActuatorData()
+        actuatorData.setTypeID(ConfigConst.LED_DISPLAY_ACTUATOR_TYPE)
+        actuatorData.setCommand(self.currentLedState)
+        actuatorData.setStateData(message)
+        
+        self.actuatorAdapterManager.sendActuatorCommand(actuatorData)
+
+    def _triggerAlert(self, alertType: str):
+        """
+        Trigger system alert.
+        """
+        self._updateLedDisplay(f"ALERT: {alertType}", ConfigConst.LED_ALERT_CMD)
